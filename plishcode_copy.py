@@ -1,10 +1,11 @@
 #!/usr/bin/python
 
-mrna_sequence_amanda = "CGTTGTTGTTCACATAAACCGTCCTTAGTATGATGACAATATAGCCAGGTT"
+mrna_sequence_amanda = "CGTTGTTGTTCACATAAACCGTCCTTAGTATGATGACAATATAGCCAGGCGTTGTTGTTCACATAAACCGTCCTTAGTATGATGACAATATAGCCAGG"
 mrna_sequence = mrna_sequence_amanda.upper()    #Use a preloaded mRNA sequence
 
 #import libraries: 
 import cmath    #use for mathematics
+import sys
 import numpy
 import xlsxwriter as xl  #write to excel files
 import os
@@ -13,6 +14,7 @@ from Bio.Blast.Applications import NcbiblastxCommandline
 import PLISHProbeDesigner_copy as probe_designer
 import PLISHDesigner_support_copy
 from Bio.Blast import NCBIXML
+import primer3                    #use this library to calculate thermodynamic values
 
 import Tkinter as tk
 
@@ -97,9 +99,11 @@ class Hprobe:
     percent_CG = None     #the percentage of 'G' or 'C' nucleotides in hprobe
     melt_temp = None      #the melting temperature for a probe
     end_annealment_count = None   #the number of sequence overlaps between the start and end of the hprobe
+    hairpinDG = None
+    homodimerDG = None
     
     #constructor for hprobe class
-    def __init__(self, is_left_probe, complete_sequence, index, binding_sequence, percent_GC, melt_temp, end_annealment):
+    def __init__(self, is_left_probe, complete_sequence, index, binding_sequence, percent_GC, melt_temp, end_annealment, hairpinDG, homodimerDG):
         self.is_left_probe = is_left_probe
         self.complete_sequence = complete_sequence
         self.start_index = index
@@ -107,10 +111,12 @@ class Hprobe:
         self.percent_GC = percent_GC
         self.melt_temp = melt_temp
         self.end_annealment_count = end_annealment
+        self.hairpinDG = hairpinDG
+        self.homodimerDG = homodimerDG
 
 #make_Hprobe: Used to create new instances of the hprobe class
-def make_Hprobe(is_left_probe, complete_sequence, index, binding_sequence, percent_GC, melt_temp, end_annealment):
-    hprobe = Hprobe(is_left_probe, complete_sequence, index, binding_sequence, percent_GC, melt_temp, end_annealment)
+def make_Hprobe(is_left_probe, complete_sequence, index, binding_sequence, percent_GC, melt_temp, end_annealment, hairpinDG, homodimerDG):
+    hprobe = Hprobe(is_left_probe, complete_sequence, index, binding_sequence, percent_GC, melt_temp, end_annealment, hairpinDG, homodimerDG)
     return hprobe         
     
 '''Hprobe_pair: A container class for Hprobe pairs. Stores the left and right hprobes of a pair, as 
@@ -121,16 +127,18 @@ class Hprobe_pair:
     right = Hprobe
     num_alignments = None
     sequence_number = None #the index of the sequence, which indicates relative order in which sequences were processed
+    heterodimerDG = None
     
-    def __init__(self, left_probe, right_probe, num_alignments, sequence_number):
+    def __init__(self, left_probe, right_probe, num_alignments, sequence_number, heterodimerDG):
         self.left = left_probe
         self.right = right_probe
         self.num_alignments = num_alignments
         self.sequence_number = sequence_number
+        self.heterodimerDG = heterodimerDG
 
 #make_Hprobe_pair: Used to create new instances of the Hprobe_pair class
-def make_Hprobe_pair(left_probe, right_probe, num_alignments, sequence_number):
-    hprobe_pair = Hprobe_pair(left_probe, right_probe, num_alignments,sequence_number)
+def make_Hprobe_pair(left_probe, right_probe, num_alignments, sequence_number, heterodimerDG):
+    hprobe_pair = Hprobe_pair(left_probe, right_probe, num_alignments,sequence_number, heterodimerDG)
     return hprobe_pair
 
 
@@ -141,6 +149,21 @@ GC and end annealment.
 #reverseString: returns the reverse ordered string. Used to maintain 5' to 3' orientation for Hprobes
 def reverseString(new_string):
     return new_string[::-1]
+
+#return hairpin dG from base pair sequence. Can also return melting temperature if needed
+def calcHairpinDG(bp_sequence):
+    hairpin_parameters = primer3.calcHairpin(bp_sequence)
+    return hairpin_parameters.dg
+
+#return homodimer dG from base pair sequence. Can also return melting temperature if needed
+def calcHomodimerDG(bp_sequence):
+    homodimer_parameters = primer3.calcHomodimer(bp_sequence)
+    return homodimer_parameters.dg
+
+#return heterodimer dG from a single base pair sequences. Can also return melting temperature if needed
+def calcHeterodimerDG(sequence1, sequence2):
+    heterodimer_parameters = primer3.calcHeterodimer(sequence1, sequence2)
+    return heterodimer_parameters.dg
 
 #reverseComplement: returns the reverse complement of a string. Used to find complementary Hprobe sequences
 def reverseComplement(oldString):
@@ -193,15 +216,22 @@ def valid_end_annealment(Hprobe_pair):
     else:
         return True
 
+#returns the melting temperature and delta G value for hairpin formation
+def get_Hairpins(bp_sequence):
+    hairpin_parameters = primer3.calcHairpin(bp_sequence)
+    return hairpin_parameters.tm, hairpin_parameters.dg
+
 '''get_melt_temp: returns the integer melting temperature for a given Hprobe. Global variables set for salt_conc,
                   percent_GC, bp_sequence, percent_formamide'''
 def get_melt_temp(salt_conc, percent_GC, bp_sequence, percent_formamide):
-   n = len(bp_sequence) #get length of BP sequence
-   salt_conc = numpy.float(salt_conc)
-   percent_formamide = numpy.float(percent_formamide)
-   percent_GC = numpy.float(percent_GC)
-   melt_temp = 81 + 16.6*(cmath.log(salt_conc)) + .41*(percent_GC) - 500/n - .61*(percent_formamide) #use Wahl paper formula
-   return melt_temp.real
+   Tm = 81.5 + 16.6*(cmath.log(salt_conc)) + .41*(percent_GC) - 600/len(bp_sequence)    #source: http://bioinfo.ut.ee/primer3-0.4.0/input-help.htm
+   return Tm.real
+   '''Old Formula'''
+   #n = len(bp_sequence) #get length of BP sequence
+   #salt_conc = numpy.float(salt_conc)
+   #percent_formamide = numpy.float(percent_formamide)
+   #percent_GC = numpy.float(percent_GC)
+   #melt_temp = 81 + 16.6*(cmath.log(salt_conc)) + .41*(percent_GC) - 500/n - .61*(percent_formamide) #use Wahl paper formula
 
 '''valid_melt_temp: Ensure that melting temperature of H_probes is within an allowable range. 
                     Please make sure to set the min_melt_temp and max_melt_temp global variables. '''
@@ -220,10 +250,10 @@ def valid_melt_temp(Hprobe_pair):
     Returns the workbook and the initialized worksheet.'''
 def initializeWorkSheet():
     #create list of column labels for output file
-    label_list1 = ('Hprobe', 'Sequence Number', 'Number of Alignments', 'Number of End Annealments', 'Percent GC', 'Melting Temperature', 'mRNA Indice', 'Sequence (initiator lowercase)')
+    label_list1 = ('Hprobe', 'Sequence Number', 'Number of Alignments', 'Number of End Annealments', 'Percent GC', 'Melting Temperature', 'mRNA Indice', 'Sequence (initiator lowercase)', 'HairpinDG', 'HomodimerDG', 'HeterodimerDG')
     
     #Create excel workbook and add worksheet
-    workbook = xl.Workbook(path + '/PLISH_Workbook.xlsx')
+    workbook = xl.Workbook(path + '/PLISH_Workbook_2.xlsx')
     
     #create worksheet to store left/right h_probes
     worksheet1 = workbook.add_worksheet()
@@ -266,7 +296,7 @@ def plotProbeData(hprobe_pairs, worksheet1, worksheet2, workbook):
     for pair in hprobe_pairs:
         left = pair.left     #store left probe in left
         right = pair.right   #store right probe in right
-        
+
         #set left probe's title
         left_probe_title = ("Probe " + str(counter) + " (left)")
         #set right probe's title
@@ -282,6 +312,10 @@ def plotProbeData(hprobe_pairs, worksheet1, worksheet2, workbook):
         output_array_left.append(left.melt_temp)    #the melting temperature for a probe
         output_array_left.append(left.start_index)  #initial base pair indice of RNA sequence where hprobe aligns
         output_array_left.append(left.complete_sequence)     #the base pair sequence for the hprobe
+        output_array_left.append(left.hairpinDG)   #the hairpin delta G value for the hprobe
+        output_array_left.append(left.homodimerDG)    #the homodimer delta G value
+        output_array_left.append(pair.heterodimerDG)    #the heterodimer delta G value
+        
         
         #append data to right probe output array
         output_array_right.append(right_probe_title)  #append right probe title
@@ -292,6 +326,9 @@ def plotProbeData(hprobe_pairs, worksheet1, worksheet2, workbook):
         output_array_right.append(right.melt_temp)    #the melting temperature for a probe
         output_array_right.append(right.start_index)  #initial base pair indice of RNA sequence where hprobe aligns
         output_array_right.append(right.complete_sequence)     #the base pair sequence for the hprobe
+        output_array_right.append(right.hairpinDG)   #the hairpin delta G value for the hprobe
+        output_array_right.append(right.homodimerDG)    #the homodimer delta G value
+        
         
         '''FIX MELT TEMP CHECK'''
         #Color first column in row green if hprobe is valid
@@ -336,6 +373,8 @@ def plotProbeData(hprobe_pairs, worksheet1, worksheet2, workbook):
         #clear left and right arrays
         output_array_left = []
         output_array_right = []
+    
+    workbook.close()
     
     # conditionally format worksheet1 to indicate erroneous hprobe values
     
@@ -469,9 +508,9 @@ def runBLAST(key, value, counter, record_ID):
                                       from a homologous gene. Does this by ensuring that the species 
                                       name is in the alignment title and the gene name is not.'''                                    
     for alignment in blast_record.alignments:
-        if gene_name not in alignment.title and species_name in alignment.title:
-            potential_alignments.append(alignment)
-            print alignment
+        #if gene_name not in alignment.title and species_name in alignment.title:
+        potential_alignments.append(alignment)
+        print alignment
     
     #create tuple storing sequence [first element] and sequence number [second element]
     value = [value, counter]
@@ -481,10 +520,16 @@ def runBLAST(key, value, counter, record_ID):
     equal to the sequence start indice and the values equivalent to the nucleotide sequence.'''
     if len(potential_alignments) == 0:
         zero_alignment_full_binding_sequences[key] = value
+        print ("found zero alignment sequence")
+        sys.exit
     elif len(potential_alignments) == 1:
         one_alignment_full_binding_sequences[key] = value
+        print ("found one alignment sequence")
+        sys.exit
     elif len(potential_alignments) == 2:
         two_alignment_full_binding_sequences[key] = value
+        print ("found two alignment sequence")
+        sys.exit
     else:
         mult_alignment_full_binding_sequences[key] = value
     
@@ -600,6 +645,17 @@ def create_H_Probes():
             #get the sequence number for the h_probe
             sequence_number = value[1]
             
+            #calculate hairpin delta G values for each hprobe
+            hairpinDG_left = calcHairpinDG(left_hprobe_sequence)
+            hairpinDG_right = calcHairpinDG(right_hprobe_sequence)
+            
+            #calculate homodimer delta G values for each hprobe
+            homodimerDG_left = calcHomodimerDG(left_hprobe_sequence)
+            homodimerDG_right = calcHomodimerDG(right_hprobe_sequence)
+            
+            #calculate heterodimer delta G values
+            heterodimerDG = calcHeterodimerDG(left_hprobe_sequence, right_hprobe_sequence)
+            
             #measure and store the percent of 'G' or 'C' nucleaotides in each h_probe sequence
             percent_GC_left = percentGC(left_hprobe_sequence)
             percent_GC_right = percentGC(right_hprobe_sequence)  
@@ -617,11 +673,11 @@ def create_H_Probes():
                    
             '''Create the left and right h_probe objects once all member variables have been 
             set.'''          
-            left_hprobe = Hprobe(True, left_hprobe_sequence, left_index, left_hprobe_binding_sequence, percent_GC_left,  melt_temp_left, end_annealment_left)    #create left probe
-            right_hprobe = Hprobe(False, right_hprobe_sequence, right_index, right_hprobe_binding_sequence, percent_GC_right, melt_temp_right, end_annealment_right)    #create right probe
+            left_hprobe = Hprobe(True, left_hprobe_sequence, left_index, left_hprobe_binding_sequence, percent_GC_left,  melt_temp_left, end_annealment_left, hairpinDG_left, homodimerDG_left)    #create left probe
+            right_hprobe = Hprobe(False, right_hprobe_sequence, right_index, right_hprobe_binding_sequence, percent_GC_right, melt_temp_right, end_annealment_right, hairpinDG_right, homodimerDG_right)    #create right probe
             
             #add left and right half h_probes to Hprobe_pair object, which stores the complete h_probe
-            hprobe_pair = Hprobe_pair(left_hprobe, right_hprobe, num_alignments, sequence_number)
+            hprobe_pair = Hprobe_pair(left_hprobe, right_hprobe, num_alignments, sequence_number, heterodimerDG)
             potential_Hprobe_pairs.append(hprobe_pair)
             
 '''Print Function: This function prints the results to an excel file, which displays 
@@ -631,6 +687,7 @@ def create_H_Probes():
                    concerns are red.'''
 def printToExcel():
     for hprobe_pair in potential_Hprobe_pairs:
+        print("YOLO")
         if (valid_end_annealment(hprobe_pair) and valid_percentGC(hprobe_pair)):
             print (hprobe_pair.left.complete_sequence + " " + hprobe_pair.right.complete_sequence + "\n")
     
@@ -647,42 +704,6 @@ if not os.path.exists(path):
     else:  
         print ("Successfully created the directory %s " % path)
 
-def main():
-    '''CALL VALIDATE GUI INPUT FUNC'''
-    
-    '''reads FASTA file and returns string containing mRNA sequence for alignment,
-    as wellas record ID fromo= original FASTA file'''
-    mrna_sequence, record_ID = read_mrna_sequence()
-    
-    #extract all potential 40BP sequences from target mRNA sequence, which contain 'TA' or 'AG' in center
-    potential_40bp_sequences = extractSequences(mrna_sequence)
-    
-    '''BLAST code: This script runs BLAST, which can allign potential hprobe sequences to mrna. Returns all
-                   alignments above a minimal threshold value.'''
-    counter = 0 #store sequence number
-    for key, value in potential_40bp_sequences.iteritems():
-        #run BLAST alignment on potential probe sequences
-        runBLAST(key, value, counter, record_ID)
-        counter+=1
-        
-    #print all sequences with no alignments. CURRENTLY just a test
-    print("\nSequences with no alignments:")
-    for key, value in zero_alignment_full_binding_sequences.iteritems():
-        print(value[1])
-    
-    '''Write summary file: This file summarizes the PLISH alignments and returns a list
-       a list of all plish probes with 0, 1 or 2 alignments. This summary file is stored
-       on the desktop, whose path is given by the global variable desktop_path.'''
-    produceSummaryFile()
-    
-    #find the reverse complements of each sequence with 0, 1, or 2 overlaps. This allows us
-    #to find the complementary hprobe base pairs for a given RNA segment. 
-    findReverseComplements()
-    
-    '''Create H_probe objects: Store potential h_probes as h_probe objects
-       with member variables defined by the H_probe pair class.'''
-    create_H_Probes()
-    
-    '''Print PLISH probe information to an excel file'''
-    printToExcel()
+
+
 

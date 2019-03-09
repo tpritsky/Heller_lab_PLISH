@@ -266,9 +266,11 @@ class PLISH_Designer:
             '''WHY DOESN'T self.txtGene reinitialize more than once?'''
                 
             #print all sequences with no alignments. CURRENTLY just a test
-            print("\nSequences with no alignments:*")
-            for key, value in plishcode_copy.zero_alignment_full_binding_sequences.iteritems():
+            #print("\nSequences with no alignments:*")
+            #debugging statement
+            '''for key, value in plishcode_copy.zero_alignment_full_binding_sequences.iteritems():
                 print(value[1])
+                print("coasting")'''
             
             '''Write summary file: This file summarizes the PLISH alignments and returns a list
                a list of all plish probes with 0, 1 or 2 alignments. This summary file is stored
