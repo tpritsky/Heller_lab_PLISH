@@ -29,6 +29,8 @@ gene_name = "TECTA"
 
 desktop_path = "/Users/tompritsky/Desktop"
 
+BLAST_xml_path = "/Users/tompritsky/Desktop/HellerLab/PLISH_SCRIPTS/blast_RUN.xml"
+
 #Path to FASTA file for mrna of gene of interest (please set)
 FASTA_file = "/Users/tompritsky/Downloads/tecta_gallus.fasta" 
 
@@ -438,8 +440,8 @@ def read_mrna_sequence():
     print(record.description)
     
     #convert the mrna sequence to string
-    #mrna_sequence = str(record.seq)
-    global mrna_sequence
+    mrna_sequence = str(record.seq)
+    #global mrna_sequence
     return mrna_sequence, record_ID
 
 '''extractSequences: Returns a dictionary with 50BP sequences as values and their
@@ -475,12 +477,12 @@ def extractSequences(mrna_sequence):
 '''runBLAST: runs BLAST alignment on a nucleotide sequence and store the string and its location into the correct vector
 based upon number of alignments. This function prints runtime information, but has no return values. The input is a string 'value',
 storing the nucleotide sequence, an integer key storing its location, and an integer counter.'''
-def runBLAST(key, value, counter, record_ID):
+def runBLAST(key, value, counter, record_ID, FASTA_file_path = desktop_path+"/HellerLab/PLISH_SCRIPTS/tmp.fasta"):
     print("\nPotential Hprobe sequence " + str(counter+1) + ":")     #prints the sequence being aligned
     print(value)    #NOT Sure why this doesn't return the first value
     
     #Produce a temporary fasta file because the blast command needs a fasta file as input.
-    out_fasta = open(desktop_path+"/HellerLab/PLISH_SCRIPTS/tmp.fasta", 'w')
+    out_fasta = open(FASTA_file_path, 'w')
     query = ">" + record_ID + "\n" + str(value)
     print("\nWriting to temp FASTA file...")
     out_fasta.write(query) # And I have this file with my sequence correctly filled
@@ -488,7 +490,7 @@ def runBLAST(key, value, counter, record_ID):
     
     #create command line argumnt
     print("\nRunning BLAST...")
-    blastn_cline = NcbiblastxCommandline(cmd='/usr/local/ncbi/blast/bin/blastn', query=desktop_path+"/HellerLab/PLISH_SCRIPTS/tmp.fasta", db= nucleotideDatabase, evalue=0.001, outfmt=5, out="/Users/tompritsky/Desktop/HellerLab/PLISH_SCRIPTS/blast_RUN.xml")
+    blastn_cline = NcbiblastxCommandline(cmd='/usr/local/ncbi/blast/bin/blastn', query=desktop_path+"/HellerLab/PLISH_SCRIPTS/tmp.fasta", db= nucleotideDatabase, evalue=0.001, outfmt=5, out=BLAST_xml_path)
     print(blastn_cline)
     #output_BLAST.close()
     
@@ -496,7 +498,13 @@ def runBLAST(key, value, counter, record_ID):
     print("BLAST Output")
     #stdout, stderr = blastn_cline()
     os.system(str(blastn_cline))
-    result_handle = open("/Users/tompritsky/Desktop/HellerLab/PLISH_SCRIPTS/blast_RUN.xml", 'r')
+    sortBLASTOutput(key, value, counter, record_ID)
+    
+def sortBLASTOutput(key, value, counter, record_ID):
+    result_handle = open(BLAST_xml_path, 'r')
+    
+    #Alternate result handle to check for two alignment sequences
+    #result_handle = open("/Users/tompritsky/Desktop/PLISH_output/blast_RUN.xml", 'r')
     
     #loop through BLAST alignments and print them to screen
     blast_record = NCBIXML.read(result_handle) #how do I exclude specific sequences
@@ -510,6 +518,7 @@ def runBLAST(key, value, counter, record_ID):
     for alignment in blast_record.alignments:
         #if gene_name not in alignment.title and species_name in alignment.title:
         potential_alignments.append(alignment)
+        
         print alignment
     
     #create tuple storing sequence [first element] and sequence number [second element]
@@ -521,15 +530,12 @@ def runBLAST(key, value, counter, record_ID):
     if len(potential_alignments) == 0:
         zero_alignment_full_binding_sequences[key] = value
         print ("found zero alignment sequence")
-        sys.exit
     elif len(potential_alignments) == 1:
         one_alignment_full_binding_sequences[key] = value
         print ("found one alignment sequence")
-        sys.exit
     elif len(potential_alignments) == 2:
         two_alignment_full_binding_sequences[key] = value
         print ("found two alignment sequence")
-        sys.exit
     else:
         mult_alignment_full_binding_sequences[key] = value
     
@@ -703,7 +709,11 @@ if not os.path.exists(path):
         print ("Creation of the directory %s failed" % path)
     else:  
         print ("Successfully created the directory %s " % path)
-
-
-
+'''if __name__ == "__main__":
+    mrna_sequence, record_ID = read_mrna_sequence()
+    runBLAST(3, 'AAAAAAAA', 4, record_ID, '/Users/tompritsky/Desktop/BLAST_practice_files/two_alignment.fasta')
+    sortBLASTOutput(3, 'AAAAAAAA', 4, record_ID)
+    produceSummaryFile()
+'''   
+    
 

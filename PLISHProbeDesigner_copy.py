@@ -74,20 +74,22 @@ def reinitialize_sequence_label(label, key, value):
         label['text'] = value[i]
         plishcode_copy.runBLAST(key[i], value[i], i, plishcode_copy.record_ID)
         i += 1
-        label.after(30, count)
+        label.after(1, count)
     count()
 
-'''TEST: reinitialize_sequence_label: reinitializes the text in a label corresponding
-to the sequence being aligned (stored in value). Takes in three inputs: 1. the label object
-to be altered, 2. a list of keys(corresponding to sequence locations) and 3. a list of values
-(corresponding to nucleotide sequence strings)'''
-i = 0
-progressBarValue = 0
+i = 0  
+'''(CHECK)'''
+progressBarValue = 0   
+'''CHECK'''
 def reinitialize_minGC_label(root, currentSequence, sequenceNumber, progressBar, key, value, finalize):
+    '''TEST: reinitialize_sequence_label: reinitializes the text in a label corresponding
+    to the sequence being aligned (stored in value). Takes in four inputs: 1. the label object
+    to be altered, 2. a list of keys(corresponding to sequence locations) and 3. a list of values
+    (corresponding to nucleotide sequence strings) and 4. the finalize fiunction (defined below). Also runs BLAST alignment.'''
     progressBarValue = 0
     def count():
         global i
-        if(i == len(value)):
+        if(i == len(value)):    #once I've gone through all the sequences, I finalize
             finalize()
             return
         if(i < len(value)):
@@ -109,6 +111,7 @@ def runSingleBlast(key, value, txtEntry):
         plishcode_copy.runBLAST(key, value, plishcode_copy.counter, plishcode_copy.record_ID)
         plishcode_copy.counter+=1
     
+
 def vp_start_gui():
     '''Starting point when module is the main routine.'''
     global val, w, root
@@ -313,6 +316,10 @@ class PLISH_Designer:
         value_list = []
         global progressBarValue
         progressBarValue = 0
+        
+        '''Two outputs produced: 2. a list of keys(corresponding to sequence locations) and 3. a list of values
+(corresponding to nucleotide sequence strings)
+        '''
         for key, value in plishcode_copy.potential_40bp_sequences.iteritems():
             key_list.append(key)
             value_list.append(value)
