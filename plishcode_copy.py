@@ -440,8 +440,8 @@ def read_mrna_sequence():
     print(record.description)
     
     #convert the mrna sequence to string
-    mrna_sequence = str(record.seq)
-    #global mrna_sequence
+    #mrna_sequence = str(record.seq)
+    global mrna_sequence
     return mrna_sequence, record_ID
 
 '''extractSequences: Returns a dictionary with 50BP sequences as values and their
