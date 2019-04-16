@@ -70,13 +70,6 @@ alignment_probe_length = alignment_sequence_length/2    #stores length of alignm
 #Initiator Sequence List
 poss_initiator_sequences = {}
 
-'''Primer3 thermodynamic consts: Will be set by GUI; currently pre-set
----------------------------------------------------------------------------'''
-hairpinDG_min = -3000;      #minimum value for the hairpin DG formation, in cal/mol (more negative DG, more stable hairpin)
-homodimerDG_min = -6000;
-heterodimerDG_min = -6000;
-melt_temp_min = None        #need to fill in 
-
 
 '''Internal variables:
 --------------------------------------------------------------'''
@@ -447,8 +440,8 @@ def read_mrna_sequence():
     print(record.description)
     
     #convert the mrna sequence to string
-    mrna_sequence = str(record.seq)
-    #global mrna_sequence
+    #mrna_sequence = str(record.seq)
+    global mrna_sequence
     return mrna_sequence, record_ID
 
 '''extractSequences: Returns a dictionary with 50BP sequences as values and their
@@ -480,71 +473,6 @@ def extractSequences(mrna_sequence):
     for key, value in potential_full_binding_sequences.iteritems():
         print value   #print all potential h_probe sequences
     return potential_full_binding_sequences
-
-'''Create all H_probe objects: Store potential h_probes as h_probe objects
-   with member variables defined by the H_probe pair class. Two h_probes, 
-   left and right h_probe, are stored in the container class hprobe_pair,
-   which stores the left and right halves of an h_prober object.'''
-def test_H_Probe(key, value, num_iterations):
-    print("create all h probes running")
-    print(str(100*key/num_iterations) + "% complete")
-    
-    #create reverse complement for testing
-    value = reverseComplement(value)
-    
-    valid_probe = True
-    #CHECK: if reverseComplement hprobe is necessary (currently commented out)
-    #create h_probe objects corresponding to the left and right halves of an h_probe
-    #edit
-    left_hprobe_binding_sequence = value[0:alignment_probe_length]  #get corresponding mrna sequence (left probe)
-    #left_hprobe_sequence = reverseComplement(left_hprobe_sequence)  #get complementary hprobe sequence (left probe)
-    left_hprobe_binding_sequence = reverseString(left_hprobe_binding_sequence)  #reverse directionality (left probe)
-    right_hprobe_binding_sequence = value[alignment_probe_length:alignment_sequence_length]
-    #left_hprobe_sequence = reverseComplement(left_hprobe_sequence)
-    right_hprobe_binding_sequence = reverseString(right_hprobe_binding_sequence)
-    
-    '''Generate full hprobe sequences ordered 5' to 3' (consisting of binding sequence, initiator sequence, and spacer). 
-    These full hprobe are used in validity testing, including percent GC, end_annealment, etc.'''
-    left_hprobe_sequence = initiator_sequence[0:len(initiator_sequence)/2] + spacer_sequence + left_hprobe_binding_sequence
-    right_hprobe_sequence = right_hprobe_binding_sequence + spacer_sequence + initiator_sequence[len(initiator_sequence)/2:len(initiator_sequence)]
-    
-    #left_hprobe_sequence = left_hprobe_sequence.upper()     #uppercase entire sequence
-    #right_hprobe_sequence = right_hprobe_sequence.upper()   #uppercase entire sequence
-    
-    #calculate hairpin delta G values for each hprobe
-    hairpinDG_left = calcHairpinDG(left_hprobe_sequence)
-    hairpinDG_right = calcHairpinDG(right_hprobe_sequence)
-    
-    #test hairpinDG values:
-    if(hairpinDG_left < hairpinDG_min or hairpinDG_right < hairpinDG_min):
-        valid_probe = False
-    
-    #calculate homodimer delta G values for each hprobe
-    homodimerDG_left = calcHomodimerDG(left_hprobe_sequence)
-    homodimerDG_right = calcHomodimerDG(right_hprobe_sequence)
-    
-    #test homodimerDG values:
-    if(homodimerDG_left < homodimerDG_min or homodimerDG_right < homodimerDG_min):
-        valid_probe = False
-    
-    #calculate heterodimer delta G values
-    heterodimerDG = calcHeterodimerDG(left_hprobe_sequence, right_hprobe_sequence)
-    
-    #test heterodimer delta G values
-    if(heterodimerDG < heterodimerDG_min):
-        valid_probe = False
-    
-    '''record and store the melt_temp for each h_probe. Ensure that the melt_temp equation
-    is correct. Also verify that the global variables used to calculate the melt_temp are set 
-    correctly.'''
-    #melt_temp_left = get_melt_temp(salt_conc, percent_GC_left, left_hprobe_sequence, percent_formamide)
-    #melt_temp_right = get_melt_temp(salt_conc, percent_GC_right, right_hprobe_sequence, percent_formamide)
-    
-    #need to implement this
-    #if(melt_temp_left < min_melt_temp or melt_temp_right < min_melt_temp):
-    #    valid_probe = False
-        
-    return valid_probe      #return whether probe is valid (passes thermodynamic tests)
         
 '''runBLAST: runs BLAST alignment on a nucleotide sequence and store the string and its location into the correct vector
 based upon number of alignments. This function prints runtime information, but has no return values. The input is a string 'value',
@@ -685,7 +613,7 @@ def findReverseComplements():
    left and right h_probe, are stored in the container class hprobe_pair,
    which stores the left and right halves of an h_prober object.'''
 def create_H_Probes():
-    for i in range(0, 3):
+    for i in range(0, 2):
         if i == 0:
             list = zero_alignment_full_binding_sequences.iteritems() #create hprobes with no alignments
             num_alignments = 0
@@ -699,7 +627,6 @@ def create_H_Probes():
         #CHECK: if reverseComplement hprobe is necessary (currently commented out)
         #create h_probe objects corresponding to the left and right halves of an h_probe
         for key, value in list:
-            print("new hprobe produced")
             '''EDIT'''
             left_hprobe_binding_sequence = value[0][0:alignment_probe_length]  #get corresponding mrna sequence (left probe)
             #left_hprobe_sequence = reverseComplement(left_hprobe_sequence)  #get complementary hprobe sequence (left probe)
@@ -707,6 +634,8 @@ def create_H_Probes():
             right_hprobe_binding_sequence = value[0][alignment_probe_length:alignment_sequence_length]
             #left_hprobe_sequence = reverseComplement(left_hprobe_sequence)
             right_hprobe_binding_sequence = reverseString(right_hprobe_binding_sequence)
+            
+            ##################################EDITED#########################################################################
             
             '''Generate full hprobe sequences ordered 5' to 3' (consisting of binding sequence, initiator sequence, and spacer). 
             These full hprobe are used in validity testing, including percent GC, end_annealment, etc.'''
@@ -716,8 +645,11 @@ def create_H_Probes():
             #left_hprobe_sequence = left_hprobe_sequence.upper()     #uppercase entire sequence
             #right_hprobe_sequence = right_hprobe_sequence.upper()   #uppercase entire sequence
             
+            #################################################################################################################
+            
             #get the start indices (from 3' end of mrna) of each h_probe binding region
             left_index = key
+            
             '''EDIT'''
             right_index = key + alignment_probe_length
             
@@ -765,9 +697,8 @@ def create_H_Probes():
                    concerns are green, those with one concern are yellow, and those with two
                    concerns are red.'''
 def printToExcel():
-    print("Length of potential_Hprobe_pairs in printToExcel: " + str(len(potential_Hprobe_pairs)))
     for hprobe_pair in potential_Hprobe_pairs:
-        #print("printToExcel working")
+        print("YOLO")
         if (valid_end_annealment(hprobe_pair) and valid_percentGC(hprobe_pair)):
             print (hprobe_pair.left.complete_sequence + " " + hprobe_pair.right.complete_sequence + "\n")
     

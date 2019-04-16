@@ -298,12 +298,11 @@ class PLISH_Designer:
             submit_in_progress = False
         
         '''reads FASTA file and returns string containing mRNA sequence for alignment,
-        as wellas record ID fromo= original FASTA file'''
+        as well as record ID fromo= original FASTA file'''
         plishcode_copy.mrna_sequence, plishcode_copy.record_ID = plishcode_copy.read_mrna_sequence()
         
-        #extract all potential 40BP sequences from target mRNA sequence, which contain 'TA' or 'AG' in center
+        #extract all potential 40BP sequences from target mRNA sequence
         plishcode_copy.potential_40bp_sequences = plishcode_copy.extractSequences(plishcode_copy.mrna_sequence)
-        
         '''THIS IS WHERE I AM CONFUSED:
             BLAST code: This script runs BLAST, which can align potential hprobe sequences to mrna. Returns all
             alignments above a minimal threshold value. Still don't know why a for loop doesn't work with after.'''
@@ -320,9 +319,13 @@ class PLISH_Designer:
         '''Two outputs produced: 2. a list of keys(corresponding to sequence locations) and 3. a list of values
 (corresponding to nucleotide sequence strings)
         '''
+        
+        num_iterations = len(plishcode_copy.potential_40bp_sequences)
+        
         for key, value in plishcode_copy.potential_40bp_sequences.iteritems():
-            key_list.append(key)
-            value_list.append(value)
+            if(plishcode_copy.test_H_Probe(key, value, num_iterations)):
+                key_list.append(key)
+                value_list.append(value)
             #progressBarValue += 1
         
         #Runs BLAST alignment locally and displays current sequence being aligned to GUI
