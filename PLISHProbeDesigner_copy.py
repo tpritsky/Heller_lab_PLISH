@@ -394,7 +394,7 @@ class PLISH_Designer:
         self.Label1.configure(background="#d9d9d9")
         self.Label1.configure(disabledforeground="#a3a3a3")
         self.Label1.configure(foreground="#000000")
-        self.Label1.configure(text='''Welcome to PLISH Probe Designer...''')
+        self.Label1.configure(text='''Welcome to the Caltech Protocol Probe Designer''')
 
         self.Label2 = Label(self.top)
         self.Label2.place(relx=0.01, rely=0.1, height=26, width=121)

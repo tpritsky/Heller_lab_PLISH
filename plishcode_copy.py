@@ -16,6 +16,11 @@ import PLISHDesigner_support_copy
 from Bio.Blast import NCBIXML
 import primer3                    #use this library to calculate thermodynamic values
 
+#used to calculate melting temp
+from Bio.SeqUtils import MeltingTemp as mt
+from Bio.Seq import Seq
+
+
 import Tkinter as tk
 
 '''Default Probe Constants: Set by GUI
@@ -32,10 +37,11 @@ desktop_path = "/Users/tompritsky/Desktop"
 BLAST_xml_path = "/Users/tompritsky/Desktop/HellerLab/PLISH_SCRIPTS/blast_RUN.xml"
 
 #Path to FASTA file for mrna of gene of interest (please set)
-FASTA_file = "/Users/tompritsky/Downloads/tecta_gallus.fasta" 
+FASTA_file = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg_cxcl14_coding_seq.txt"
 
 #Nucleotide database
-nucleotideDatabase="/Users/tompritsky/Desktop/HellerLab/gallus_gallus.fasta"
+#nucleotideDatabase="/Users/tompritsky/Desktop/HellerLab/gallus_gallus.fasta"
+nucleotideDatabase = "/Users/tompritsky/Desktop/HellerLab/dataSets/Gallus_Gallus_Exons_and_UTR/-Gallus_Gallus_Exons_and_UTR"
 
 #BLAST sequence alignment thresholds (please set):
 E_value_threshold = 100
@@ -46,8 +52,8 @@ percent_formamide = 4
 melt_temp = 0
 
 #percentGC values (please set):
-min_percent_GC = .45     #minimum percentage of GC in a single Hprobe
-max_percent_GC = .56     #maximum percentage of GC in a single Hprobe
+min_percent_GC = .30     #minimum percentage of GC in a single Hprobe
+max_percent_GC = .70     #maximum percentage of GC in a single Hprobe
 
 #end annealment values (please set):
 max_end_annealment = 2      #maximum number of overlaps between start and end of h_probe sequence
@@ -72,9 +78,9 @@ poss_initiator_sequences = {}
 
 '''Primer3 thermodynamic consts: Will be set by GUI; currently pre-set
 ---------------------------------------------------------------------------'''
-hairpinDG_min = -3000;      #minimum value for the hairpin DG formation, in cal/mol (more negative DG, more stable hairpin)
-homodimerDG_min = -6000;
-heterodimerDG_min = -6000;
+hairpinDG_min = -3;      #minimum value for the hairpin DG formation, in Kcal/mol (more negative DG, more stable hairpin)
+homodimerDG_min = -6;
+heterodimerDG_min = -6;
 melt_temp_min = None        #need to fill in 
 
 
@@ -162,17 +168,17 @@ def reverseString(new_string):
 #return hairpin dG from base pair sequence. Can also return melting temperature if needed
 def calcHairpinDG(bp_sequence):
     hairpin_parameters = primer3.calcHairpin(bp_sequence)
-    return hairpin_parameters.dg
+    return (hairpin_parameters.dg)/1000
 
 #return homodimer dG from base pair sequence. Can also return melting temperature if needed
 def calcHomodimerDG(bp_sequence):
     homodimer_parameters = primer3.calcHomodimer(bp_sequence)
-    return homodimer_parameters.dg
+    return (homodimer_parameters.dg)/1000
 
 #return heterodimer dG from a single base pair sequences. Can also return melting temperature if needed
 def calcHeterodimerDG(sequence1, sequence2):
     heterodimer_parameters = primer3.calcHeterodimer(sequence1, sequence2)
-    return heterodimer_parameters.dg
+    return (heterodimer_parameters.dg)/1000
 
 #reverseComplement: returns the reverse complement of a string. Used to find complementary Hprobe sequences
 def reverseComplement(oldString):
@@ -196,13 +202,13 @@ def percentGC(bp_sequence):
     for index in range(len(bp_sequence)):
         if bp_sequence[index].upper() == 'G' or bp_sequence[index].upper() == 'C':
             GC_counter = GC_counter + 1
-    percent_GC = float(GC_counter)/20
+    percent_GC = float(GC_counter)/len(bp_sequence)
     return percent_GC
 
 '''valid_percentGC: Ensures that the proportion of G/C pairs is within acceptable limits. Limits are set
                     via global variables min_percent_GC and max_percent_GC'''
 def valid_percentGC(Hprobe_pair):
-    if (min_percent_GC <= Hprobe_pair.left.percent_GC <= max_percent_GC and min_percent_GC <= Hprobe_pair.right.percent_GC <= max_percent_GC):
+    if (min_percent_GC <= Hprobe_pair.left.percent_GC and Hprobe_pair.left.percent_GC <= max_percent_GC and min_percent_GC <= Hprobe_pair.right.percent_GC and Hprobe_pair.right.percent_GC <= max_percent_GC):
         return True
     else:
         return False
@@ -259,7 +265,7 @@ def valid_melt_temp(Hprobe_pair):
     Returns the workbook and the initialized worksheet.'''
 def initializeWorkSheet():
     #create list of column labels for output file
-    label_list1 = ('Hprobe', 'Sequence Number', 'Number of Alignments', 'Number of End Annealments', 'Percent GC', 'Melting Temperature', 'mRNA Indice', 'Sequence (initiator lowercase)', 'HairpinDG', 'HomodimerDG', 'HeterodimerDG')
+    label_list1 = ('Hprobe', 'Sequence Number', 'Number of Alignments', 'Number of End Annealments', 'Percent GC', 'Melting Temperature', 'mRNA Indice', 'Sequence (initiator and spacer(tt) lowercase)', 'HairpinDG (Kcal/mol)', 'HomodimerDG (Kcal/mol)', 'HeterodimerDG (Kcal/mol)')
     
     #Create excel workbook and add worksheet
     workbook = xl.Workbook(path + '/PLISH_Workbook_2.xlsx')
@@ -503,6 +509,15 @@ def test_H_Probe(key, value, num_iterations):
     #left_hprobe_sequence = reverseComplement(left_hprobe_sequence)
     right_hprobe_binding_sequence = reverseString(right_hprobe_binding_sequence)
     
+    #calculate percent GC values for each hprobe binding sequence
+    percent_GC_left = percentGC(left_hprobe_binding_sequence)
+    percent_GC_right = percentGC(right_hprobe_binding_sequence)
+    
+    #test percent GC values for each hprobe binding sequence
+    if(percent_GC_left < min_percent_GC or percent_GC_left > max_percent_GC or 
+       percent_GC_right < min_percent_GC or percent_GC_right > max_percent_GC):
+        valid_probe = False
+    
     '''Generate full hprobe sequences ordered 5' to 3' (consisting of binding sequence, initiator sequence, and spacer). 
     These full hprobe are used in validity testing, including percent GC, end_annealment, etc.'''
     left_hprobe_sequence = initiator_sequence[0:len(initiator_sequence)/2] + spacer_sequence + left_hprobe_binding_sequence
@@ -708,10 +723,15 @@ def create_H_Probes():
             #left_hprobe_sequence = reverseComplement(left_hprobe_sequence)
             right_hprobe_binding_sequence = reverseString(right_hprobe_binding_sequence)
             
+            #measure and store the percent of 'G' or 'C' nucleaotides in each h_probe binding sequence
+            percent_GC_left = percentGC(left_hprobe_binding_sequence)
+            percent_GC_right = percentGC(right_hprobe_binding_sequence) 
+            
             '''Generate full hprobe sequences ordered 5' to 3' (consisting of binding sequence, initiator sequence, and spacer). 
-            These full hprobe are used in validity testing, including percent GC, end_annealment, etc.'''
-            left_hprobe_sequence = initiator_sequence[0:len(initiator_sequence)/2] + spacer_sequence + left_hprobe_binding_sequence
-            right_hprobe_sequence = right_hprobe_binding_sequence + spacer_sequence + initiator_sequence[len(initiator_sequence)/2:len(initiator_sequence)]
+            These full hprobe are used in validity testing, including percent GC, end_annealment, etc. 
+            Note that probe initiator sequence and spacer sequences are capitalized for readability.'''
+            left_hprobe_sequence = initiator_sequence[0:len(initiator_sequence)/2].lower() + spacer_sequence.lower() + left_hprobe_binding_sequence
+            right_hprobe_sequence = right_hprobe_binding_sequence + spacer_sequence.lower() + initiator_sequence[len(initiator_sequence)/2:len(initiator_sequence)].lower()
             
             #left_hprobe_sequence = left_hprobe_sequence.upper()     #uppercase entire sequence
             #right_hprobe_sequence = right_hprobe_sequence.upper()   #uppercase entire sequence
@@ -734,10 +754,6 @@ def create_H_Probes():
             
             #calculate heterodimer delta G values
             heterodimerDG = calcHeterodimerDG(left_hprobe_sequence, right_hprobe_sequence)
-            
-            #measure and store the percent of 'G' or 'C' nucleaotides in each h_probe sequence
-            percent_GC_left = percentGC(left_hprobe_sequence)
-            percent_GC_right = percentGC(right_hprobe_sequence)  
             
             '''record and store the melt_temp for each h_probe. Ensure that the melt_temp equation
             is correct. Also verify that the global variables used to calculate the melt_temp are set 
@@ -768,7 +784,7 @@ def printToExcel():
     print("Length of potential_Hprobe_pairs in printToExcel: " + str(len(potential_Hprobe_pairs)))
     for hprobe_pair in potential_Hprobe_pairs:
         #print("printToExcel working")
-        if (valid_end_annealment(hprobe_pair) and valid_percentGC(hprobe_pair)):
+        if (valid_percentGC(hprobe_pair)):
             print (hprobe_pair.left.complete_sequence + " " + hprobe_pair.right.complete_sequence + "\n")
     
     #initialize workbook and worksheet to store PLISH data
