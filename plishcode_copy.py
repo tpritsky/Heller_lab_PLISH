@@ -3,6 +3,8 @@
 mrna_sequence_amanda = "CGTTGTTGTTCACATAAACCGTCCTTAGTATGATGACAATATAGCCAGGCGTTGTTGTTCACATAAACCGTCCTTAGTATGATGACAATATAGCCAGG"
 mrna_sequence = mrna_sequence_amanda.upper()    #Use a preloaded mRNA sequence
 
+#THIS IS A COMMENT TO CHECK BRANCH SWITCHING
+
 #import libraries: 
 import cmath    #use for mathematics
 import sys
@@ -175,7 +177,7 @@ def calcHomodimerDG(bp_sequence):
     homodimer_parameters = primer3.calcHomodimer(bp_sequence)
     return (homodimer_parameters.dg)/1000
 
-#return heterodimer dG from a single base pair sequences. Can also return melting temperature if needed
+#return heterodimer dG from single base pair sequences. Can also return melting temperature if needed
 def calcHeterodimerDG(sequence1, sequence2):
     heterodimer_parameters = primer3.calcHeterodimer(sequence1, sequence2)
     return (heterodimer_parameters.dg)/1000
