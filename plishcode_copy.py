@@ -6,7 +6,8 @@ mrna_sequence = mrna_sequence_amanda.upper()    #Use a preloaded mRNA sequence
 #THIS IS A COMMENT TO CHECK BRANCH SWITCHING
 
 #import libraries: 
-import cmath    #use for mathematics
+#import cmath    #use for mathematics
+import math
 import sys
 import numpy
 import xlsxwriter as xl  #write to excel files
@@ -39,7 +40,7 @@ desktop_path = "/Users/tompritsky/Desktop"
 BLAST_xml_path = "/Users/tompritsky/Desktop/HellerLab/PLISH_SCRIPTS/blast_RUN.xml"
 
 #Path to FASTA file for mrna of gene of interest (please set)
-FASTA_file = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg_cxcl14_coding_seq.txt"
+FASTA_file = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg_c14orf_coding_seq.txt"
 
 #Nucleotide database
 #nucleotideDatabase="/Users/tompritsky/Desktop/HellerLab/gallus_gallus.fasta"
@@ -49,13 +50,13 @@ nucleotideDatabase = "/Users/tompritsky/Desktop/HellerLab/dataSets/Gallus_Gallus
 E_value_threshold = 100
 
 #melt_temp values (please set):
-salt_conc = 5
-percent_formamide = 4
-melt_temp = 0
+salt_conc = .825
+percent_formamide = 30
+#melt_temp = 0
 
 #percentGC values (please set):
-min_percent_GC = .30     #minimum percentage of GC in a single Hprobe
-max_percent_GC = .70     #maximum percentage of GC in a single Hprobe
+min_percent_GC = 55.0149253731343 - 1*8.18487976462124     #minimum percentage of GC in a single Hprobe
+max_percent_GC = 55.0149253731343 + 1*8.18487976462124     #maximum percentage of GC in a single Hprobe
 
 #end annealment values (please set):
 max_end_annealment = 2      #maximum number of overlaps between start and end of h_probe sequence
@@ -80,10 +81,14 @@ poss_initiator_sequences = {}
 
 '''Primer3 thermodynamic consts: Will be set by GUI; currently pre-set
 ---------------------------------------------------------------------------'''
-hairpinDG_min = -3;      #minimum value for the hairpin DG formation, in Kcal/mol (more negative DG, more stable hairpin)
+hairpinDG_min = -0.49763270587821-0.978872719822112;      #minimum value for the hairpin DG formation, in Kcal/mol (more negative DG, more stable hairpin)
 homodimerDG_min = -6;
 heterodimerDG_min = -6;
-melt_temp_min = None        #need to fill in 
+melt_temp_min = 0
+melt_temp_max = 100
+
+melt_temp_min = 64.3692549489138 - 0*3.35580070349471       #need to fill in 
+melt_temp_max =  64.3692549489138 + 2.45*3.35580070349471
 
 
 '''Internal variables:
@@ -204,7 +209,7 @@ def percentGC(bp_sequence):
     for index in range(len(bp_sequence)):
         if bp_sequence[index].upper() == 'G' or bp_sequence[index].upper() == 'C':
             GC_counter = GC_counter + 1
-    percent_GC = float(GC_counter)/len(bp_sequence)
+    percent_GC = float(GC_counter)/len(bp_sequence)*100
     return percent_GC
 
 '''valid_percentGC: Ensures that the proportion of G/C pairs is within acceptable limits. Limits are set
@@ -241,7 +246,7 @@ def get_Hairpins(bp_sequence):
 '''get_melt_temp: returns the integer melting temperature for a given Hprobe. Global variables set for salt_conc,
                   percent_GC, bp_sequence, percent_formamide'''
 def get_melt_temp(salt_conc, percent_GC, bp_sequence, percent_formamide):
-   Tm = 81.5 + 16.6*(cmath.log(salt_conc)) + .41*(percent_GC) - 600/len(bp_sequence)    #source: http://bioinfo.ut.ee/primer3-0.4.0/input-help.htm
+   Tm = 81.5 + 16.6*(math.log10(salt_conc)) + .41*(percent_GC) - 500/len(bp_sequence) - .61*percent_formamide    #source: http://bioinfo.ut.ee/primer3-0.4.0/input-help.htm
    return Tm.real
    '''Old Formula'''
    #n = len(bp_sequence) #get length of BP sequence
@@ -267,7 +272,7 @@ def valid_melt_temp(Hprobe_pair):
     Returns the workbook and the initialized worksheet.'''
 def initializeWorkSheet():
     #create list of column labels for output file
-    label_list1 = ('Hprobe', 'Sequence Number', 'Number of Alignments', 'Number of End Annealments', 'Percent GC', 'Melting Temperature', 'mRNA Indice', 'Sequence (initiator and spacer(tt) lowercase)', 'HairpinDG (Kcal/mol)', 'HomodimerDG (Kcal/mol)', 'HeterodimerDG (Kcal/mol)')
+    label_list1 = ('Hprobe', 'Sequence Number', 'Number of Alignments', 'mRNA Indice', 'Sequence (initiator and spacer(tt) lowercase)', 'Percent GC', 'Melting Temperature', 'HairpinDG (Kcal/mol)')
     
     #Create excel workbook and add worksheet
     workbook = xl.Workbook(path + '/PLISH_Workbook_2.xlsx')
@@ -324,31 +329,32 @@ def plotProbeData(hprobe_pairs, worksheet1, worksheet2, workbook):
         output_array_left.append(left_probe_title)  #append left probe title
         output_array_left.append(pair.sequence_number)  #append the sequence number
         output_array_left.append(pair.num_alignments) #the number of mrna alignments (total number in probe)
-        output_array_left.append(left.end_annealment_count) #the number of probe end overlaps
-        output_array_left.append(left.percent_GC)   #the percentage of 'G' or 'C' nucleotides
-        output_array_left.append(left.melt_temp)    #the melting temperature for a probe
+        #output_array_left.append(left.end_annealment_count) #the number of probe end overlaps
         output_array_left.append(left.start_index)  #initial base pair indice of RNA sequence where hprobe aligns
         output_array_left.append(left.complete_sequence)     #the base pair sequence for the hprobe
+        output_array_left.append(left.percent_GC)   #the percentage of 'G' or 'C' nucleotides
+        output_array_left.append(left.melt_temp)    #the melting temperature for a probe
         output_array_left.append(left.hairpinDG)   #the hairpin delta G value for the hprobe
-        output_array_left.append(left.homodimerDG)    #the homodimer delta G value
-        output_array_left.append(pair.heterodimerDG)    #the heterodimer delta G value
+        #output_array_left.append(left.homodimerDG)    #the homodimer delta G value
+        #output_array_left.append(pair.heterodimerDG)    #the heterodimer delta G value
         
         
         #append data to right probe output array
         output_array_right.append(right_probe_title)  #append right probe title
         output_array_right.append(pair.sequence_number)  #append the sequence number
         output_array_right.append(pair.num_alignments) #the number of mrna alignments (total number in probe)
-        output_array_right.append(right.end_annealment_count) #the number of probe end overlaps
-        output_array_right.append(right.percent_GC)   #the percentage of 'G' or 'C' nucleotides
-        output_array_right.append(right.melt_temp)    #the melting temperature for a probe
+        #output_array_right.append(right.end_annealment_count) #the number of probe end overlaps
         output_array_right.append(right.start_index)  #initial base pair indice of RNA sequence where hprobe aligns
         output_array_right.append(right.complete_sequence)     #the base pair sequence for the hprobe
+        output_array_right.append(right.percent_GC)   #the percentage of 'G' or 'C' nucleotides
+        output_array_right.append(right.melt_temp)    #the melting temperature for a probe
         output_array_right.append(right.hairpinDG)   #the hairpin delta G value for the hprobe
-        output_array_right.append(right.homodimerDG)    #the homodimer delta G value
+        #output_array_right.append(right.homodimerDG)    #the homodimer delta G value
         
         
         '''FIX MELT TEMP CHECK'''
-        #Color first column in row green if hprobe is valid
+        #Color first column in row green if hprobe is valid. NOT NEEDED SINCE PROBES PRETESTED
+        '''
         worksheet1.write(row, 0, output_array_left[0], format2 
                         if(output_array_left[2]<=2
                            and output_array_left[3]<=max_end_annealment
@@ -356,7 +362,7 @@ def plotProbeData(hprobe_pairs, worksheet1, worksheet2, workbook):
                            and output_array_left[4]<=max_percent_GC
                            and output_array_left[5]>=0)
                         else None)
-        
+        '''
         column+=1
         #write data output to excel file. 
         for output in output_array_left[1:]:
@@ -367,7 +373,8 @@ def plotProbeData(hprobe_pairs, worksheet1, worksheet2, workbook):
         column = 0
         row += 1
         
-        #write data output to excel file. Color first column in row green if probe is valid
+        #write data output to excel file. Color first column in row green if probe is valid: NOT NEEDED SINCE PROBES PRETESTED
+        '''
         worksheet1.write(row, 0, output_array_right[0], format2 
                         if(output_array_right[2]<=2
                            and output_array_right[3]<=max_end_annealment
@@ -375,7 +382,7 @@ def plotProbeData(hprobe_pairs, worksheet1, worksheet2, workbook):
                            and output_array_right[4]<=max_percent_GC
                            and output_array_right[5]>=0)
                         else None)
-        
+        '''
         column+=1
         #write data to excel file
         for output in output_array_right[1:]:
@@ -391,11 +398,13 @@ def plotProbeData(hprobe_pairs, worksheet1, worksheet2, workbook):
         output_array_left = []
         output_array_right = []
     
+    
+    
     workbook.close()
     
     # conditionally format worksheet1 to indicate erroneous hprobe values
-    
-    #NUM_ALIGNMENTS: format if too many alignments
+    '''
+    #NUM_ALIGNMENTS: format if too many alignments: NOT NEEDED SINCE REQUIREMENTS ARE TESTED BEFORE OUTPUT
     worksheet1.conditional_format("$C$2:$F$%d"% ((len(hprobe_pairs)*3)+1), {'type':'blanks', 'format': format0, 'stop_if_true': True})
     worksheet1.conditional_format("$C$2:$C$%d"% ((len(hprobe_pairs)*3)+1), {'type': 'cell',
         'criteria': '>',
@@ -421,7 +430,7 @@ def plotProbeData(hprobe_pairs, worksheet1, worksheet2, workbook):
         'criteria': '>',
         'value': max_percent_GC,
         'format': format1})
- 
+    '''
 
 '''CHECK IF NEEDED'''
 #def addRowFormatting():
@@ -537,29 +546,29 @@ def test_H_Probe(key, value, num_iterations):
         valid_probe = False
     
     #calculate homodimer delta G values for each hprobe
-    homodimerDG_left = calcHomodimerDG(left_hprobe_sequence)
-    homodimerDG_right = calcHomodimerDG(right_hprobe_sequence)
+    #homodimerDG_left = calcHomodimerDG(left_hprobe_sequence)
+    #homodimerDG_right = calcHomodimerDG(right_hprobe_sequence)
     
     #test homodimerDG values:
-    if(homodimerDG_left < homodimerDG_min or homodimerDG_right < homodimerDG_min):
-        valid_probe = False
+    #if(homodimerDG_left < homodimerDG_min or homodimerDG_right < homodimerDG_min):
+        #valid_probe = False
     
     #calculate heterodimer delta G values
-    heterodimerDG = calcHeterodimerDG(left_hprobe_sequence, right_hprobe_sequence)
+    #heterodimerDG = calcHeterodimerDG(left_hprobe_sequence, right_hprobe_sequence)
     
     #test heterodimer delta G values
-    if(heterodimerDG < heterodimerDG_min):
-        valid_probe = False
+    #if(heterodimerDG < heterodimerDG_min):
+        #valid_probe = False
     
     '''record and store the melt_temp for each h_probe. Ensure that the melt_temp equation
     is correct. Also verify that the global variables used to calculate the melt_temp are set 
     correctly.'''
-    #melt_temp_left = get_melt_temp(salt_conc, percent_GC_left, left_hprobe_sequence, percent_formamide)
-    #melt_temp_right = get_melt_temp(salt_conc, percent_GC_right, right_hprobe_sequence, percent_formamide)
+    melt_temp_left = get_melt_temp(salt_conc, percent_GC_left, left_hprobe_sequence, percent_formamide)
+    melt_temp_right = get_melt_temp(salt_conc, percent_GC_right, right_hprobe_sequence, percent_formamide)
     
     #need to implement this
-    #if(melt_temp_left < min_melt_temp or melt_temp_right < min_melt_temp):
-    #    valid_probe = False
+    if(melt_temp_left < melt_temp_min or melt_temp_right < melt_temp_min or melt_temp_left > melt_temp_max or melt_temp_right > melt_temp_max):
+        valid_probe = False
         
     return valid_probe      #return whether probe is valid (passes thermodynamic tests)
         
