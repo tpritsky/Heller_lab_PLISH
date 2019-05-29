@@ -7,7 +7,9 @@ mrna_sequence = mrna_sequence_amanda.upper()    #Use a preloaded mRNA sequence
 
 #import libraries: 
 #import cmath    #use for mathematics
+import matplotlib.pyplot as plt
 import math
+import pandas as pd
 import sys
 import numpy
 import xlsxwriter as xl  #write to excel files
@@ -40,7 +42,7 @@ desktop_path = "/Users/tompritsky/Desktop"
 BLAST_xml_path = "/Users/tompritsky/Desktop/HellerLab/PLISH_SCRIPTS/blast_RUN.xml"
 
 #Path to FASTA file for mrna of gene of interest (please set)
-FASTA_file = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg_c14orf_coding_seq.txt"
+FASTA_file = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg__coding_seq.txt"
 
 #Nucleotide database
 #nucleotideDatabase="/Users/tompritsky/Desktop/HellerLab/gallus_gallus.fasta"
@@ -55,8 +57,8 @@ percent_formamide = 30
 #melt_temp = 0
 
 #percentGC values (please set):
-min_percent_GC = 55.0149253731343 - 1*8.18487976462124     #minimum percentage of GC in a single Hprobe
-max_percent_GC = 55.0149253731343 + 1*8.18487976462124     #maximum percentage of GC in a single Hprobe
+min_percent_GC = 55.0149253731343 - 1.5*8.18487976462124     #minimum percentage of GC in a single Hprobe
+max_percent_GC = 55.0149253731343 + 1.5*8.18487976462124    #maximum percentage of GC in a single Hprobe
 
 #end annealment values (please set):
 max_end_annealment = 2      #maximum number of overlaps between start and end of h_probe sequence
@@ -82,13 +84,13 @@ poss_initiator_sequences = {}
 '''Primer3 thermodynamic consts: Will be set by GUI; currently pre-set
 ---------------------------------------------------------------------------'''
 hairpinDG_min = -0.49763270587821-0.978872719822112;      #minimum value for the hairpin DG formation, in Kcal/mol (more negative DG, more stable hairpin)
-homodimerDG_min = -6;
+homodimerDG_min = -5.19 -2.67;
 heterodimerDG_min = -6;
-melt_temp_min = 0
-melt_temp_max = 100
+#melt_temp_min = 0
+#melt_temp_max = 100
 
-melt_temp_min = 64.3692549489138 - 0*3.35580070349471       #need to fill in 
-melt_temp_max =  64.3692549489138 + 2.45*3.35580070349471
+melt_temp_min = 64.3692549489138 - 0*3.35580070349471      #need to fill in 
+melt_temp_max = 64.3692549489138 + 2*3.35580070349471
 
 
 '''Internal variables:
@@ -163,6 +165,73 @@ def make_Hprobe_pair(left_probe, right_probe, num_alignments, sequence_number, h
     hprobe_pair = Hprobe_pair(left_probe, right_probe, num_alignments,sequence_number, heterodimerDG)
     return hprobe_pair
 
+
+'''Calculate probe metrics: Calculates probe parameters and outputs as a graph. '''
+
+def probeMetrics(hprobe_pairs): 
+    counter = 0;
+    listOfRowLists = []
+    columnNames = ['Hprobe', 'Sequence Number', 'Number of Alignments', 'mRNA Indice', 'Sequence (initiator and spacer(tt) lowercase)', 'Percent GC', 'Melting Temperature', 'HairpinDG (Kcal/mol)']
+    
+    for pair in hprobe_pairs:
+        rowListLeft = []
+        rowListRight = []
+        left = pair.left     #store left probe in left
+        right = pair.right   #store right probe in right
+
+        #set left probe's title
+        left_probe_title = ("Probe " + str(counter) + " (left)")
+        #set right probe's title
+        right_probe_title = ("Probe " + str(counter) + " (right)")
+        #set overall probe title
+        
+        #append data to left probe output array
+        rowListLeft.append(left_probe_title)  #append left probe title
+        rowListLeft.append(pair.sequence_number)  #append the sequence number
+        rowListLeft.append(pair.num_alignments) #the number of mrna alignments (total number in probe)
+        #rowListLeft.append(left.end_annealment_count) #the number of probe end overlaps
+        rowListLeft.append(left.start_index)  #initial base pair indice of RNA sequence where hprobe aligns
+        rowListLeft.append(left.complete_sequence)     #the base pair sequence for the hprobe
+        rowListLeft.append(left.percent_GC)   #the percentage of 'G' or 'C' nucleotides
+        rowListLeft.append(left.melt_temp)    #the melting temperature for a probe
+        rowListLeft.append(left.hairpinDG)   #the hairpin delta G value for the hprobe
+        #rowListLeft.append(left.homodimerDG)    #the homodimer delta G value
+        #rowListLeft.append(pair.heterodimerDG)    #the heterodimer delta G value
+        
+        #append data to right probe output array
+        rowListRight.append(right_probe_title)  #append right probe title
+        rowListRight.append(pair.sequence_number)  #append the sequence number
+        rowListRight.append(pair.num_alignments) #the number of mrna alignments (total number in probe)
+        #rowListRight.append(right.end_annealment_count) #the number of probe end overlaps
+        rowListRight.append(right.start_index)  #initial base pair indice of RNA sequence where hprobe aligns
+        rowListRight.append(right.complete_sequence)     #the base pair sequence for the hprobe
+        rowListRight.append(right.percent_GC)   #the percentage of 'G' or 'C' nucleotides
+        rowListRight.append(right.melt_temp)    #the melting temperature for a probe
+        rowListRight.append(right.hairpinDG)   #the hairpin delta G value for the hprobe
+        #rowListRight.append(right.homodimerDG)    #the homodimer delta G value
+        
+        listOfRowLists.append(rowListLeft)
+        print("probeMetrics running")
+        print(rowListLeft)
+        listOfRowLists.append(rowListRight)
+        counter = counter + 1
+    
+    probe_results = pd.DataFrame(listOfRowLists, columns=columnNames)
+    print(probe_results)
+    
+    PercentGCList = probe_results['Percent GC'].tolist()
+    MeltingTempList = probe_results['Melting Temperature'].tolist()
+    HairpinDGList = probe_results['HairpinDG (Kcal/mol)'].tolist()
+    
+    #plt.hist(PercentGCList)
+    #plt.show()
+    #plt.hist(MeltingTempList)
+    #plt.title("c14orf Melting Temp")
+    #plt.show()
+    plt.hist(HairpinDGList)
+    plt.title("c14orf Hairpin_DG")
+    plt.show()
+    
 
 '''Internal Functions: Used to perform probe operations and calculate probe parameters, such as percent
 GC and end annealment. 
@@ -363,9 +432,9 @@ def plotProbeData(hprobe_pairs, worksheet1, worksheet2, workbook):
                            and output_array_left[5]>=0)
                         else None)
         '''
-        column+=1
+        #column+=1
         #write data output to excel file. 
-        for output in output_array_left[1:]:
+        for output in output_array_left[0:]:
             worksheet1.write(row, column, output)
             column += 1
         
@@ -383,9 +452,9 @@ def plotProbeData(hprobe_pairs, worksheet1, worksheet2, workbook):
                            and output_array_right[5]>=0)
                         else None)
         '''
-        column+=1
+        #column+=1
         #write data to excel file
-        for output in output_array_right[1:]:
+        for output in output_array_right[0:]:
             worksheet1.write(row, column, output)
             column += 1
         
@@ -668,6 +737,7 @@ def sortBLASTOutput(key, value, counter, record_ID):
    of all plish probes with 0, 1 or 2 alignments. This summary file is stored
    on the desktop, whose path is given by the global variable desktop_path, in the PLISH folder.'''
 def produceSummaryFile():
+    
     #opens the summary file
     summary_file = open(path + "/alignment_summary.txt", "w+")
     
@@ -792,6 +862,10 @@ def create_H_Probes():
                    concerns are green, those with one concern are yellow, and those with two
                    concerns are red.'''
 def printToExcel():
+    
+    #Output probe metrics to console
+    probeMetrics(potential_Hprobe_pairs)
+    
     print("Length of potential_Hprobe_pairs in printToExcel: " + str(len(potential_Hprobe_pairs)))
     for hprobe_pair in potential_Hprobe_pairs:
         #print("printToExcel working")
