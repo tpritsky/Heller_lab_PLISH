@@ -85,7 +85,7 @@ def reinitialize_minGC_label(root, currentSequence, sequenceNumber, progressBar,
     '''TEST: reinitialize_sequence_label: reinitializes the text in a label corresponding
     to the sequence being aligned (stored in value). Takes in four inputs: 1. the label object
     to be altered, 2. a list of keys(corresponding to sequence locations) and 3. a list of values
-    (corresponding to nucleotide sequence strings) and 4. the finalize fiunction (defined below). Also runs BLAST alignment.'''
+    (corresponding to nucleotide sequence strings) and 4. the finalize function (defined below). Also runs BLAST alignment.'''
     progressBarValue = 0
     def count():
         global i
@@ -96,6 +96,7 @@ def reinitialize_minGC_label(root, currentSequence, sequenceNumber, progressBar,
             currentSequence['text'] = value[i]
             sequenceNumber['text'] = ("Sequence " + str(i + 1) + " of " + str(len(value)))
             progressBarValue = 100
+            progressBar["value"] = i*100/len(value)
             print("PROG BAR VAL")
             print(progressBarValue)
             plishcode_copy.runBLAST(key[i], value[i], i, plishcode_copy.record_ID)
@@ -137,16 +138,19 @@ def destroy_PLISH_Designer():
 
 class PLISH_Designer:
     #Default Values
-    SaltConcDefault = ".5"
-    percentFormamideDefault = ".2"
-    MinGCDefault = ".5"
-    MaxGCDefault = ".65"
+    SaltConcDefault = ".825"
+    percentFormamideDefault = "30"
+    MinGCDefault = "42.7376057262"
+    MaxGCDefault = "67.2922450201"
     EThreshDefault = ".9"
     MaxEndAnnealDefault = "2"
-    FASTAPathDefault = "C:/Desktop/PLISH/FASTAPath"
-    DBPathDefault = "C:/Desktop/PLISH/DBPath"
-    DesktopPathDefault = "C:Users/Mirko/Desktop"
+    MinHairpinDGDefault = str(-0.49763270587821-0.978872719822112)  
+    FASTAPathDefault = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg_c14orf_coding_seq.txt"
+    DBPathDefault = "/Users/tompritsky/Desktop/HellerLab/dataSets/Gallus_Gallus_Exons_and_UTR/-Gallus_Gallus_Exons_and_UTR"
+    DesktopPathDefault = "/Users/tompritsky/Desktop"
     GeneValueDefault= "Otoferlin"
+    MinMeltTempDefault = str(64.3692549489138 - 0*3.35580070349471) #reset
+    MaxMeltTempDefault = str(64.3692549489138 + 2*3.35580070349471) #reset
     top = None
     counter = 0
     
@@ -165,9 +169,17 @@ class PLISH_Designer:
     def reinitialize_txtEThresh(self, value):
         self.txtEThresh.delete(0, END)
         self.txtEThresh.insert(0, value)
-    def reinitialize_txtMaxEndAnneal(self, value):
-        self.txtMaxEndAnneal.delete(0, END)
-        self.txtMaxEndAnneal.insert(0, value)
+    def reinitialize_txtHairpinDG_min(self, value):
+        self.txtHairpinDG_min.delete(0, END)
+        self.txtHairpinDG_min.insert(0, value)
+    
+    def reinitialize_txtMeltTemp_min(self, value):
+        self.txtMeltTemp_min.delete(0, END)
+        self.txtMeltTemp_min.insert(0, value)
+    
+    def reinitialize_txtMeltTemp_max(self, value):
+        self.txtMeltTemp_max.delete(0, END)
+        self.txtMeltTemp_max.insert(0, value)
     
     '''Need to check if this applies to lists
     def reinitialize_listboxSpecies(self, value):
@@ -205,11 +217,13 @@ class PLISH_Designer:
         self.reinitialize_txtMinGC(self.MinGCDefault)
         self.reinitialize_txtMaxGC(self.MaxGCDefault)
         self.reinitialize_txtEThresh(self.EThreshDefault)
-        self.reinitialize_txtMaxEndAnneal(self.MaxEndAnnealDefault)
+        self.reinitialize_txtHairpinDG_min(self.MinHairpinDGDefault)
         self.reinitialize_txtGene(self.GeneValueDefault)
         self.reinitialize_txtFASTAPath(self.FASTAPathDefault)
         self.reinitialize_txtDBPath(self.DBPathDefault)
         self.reinitialize_txtDesktopPath(self.DesktopPathDefault)
+        self.reinitialize_txtMeltTemp_min(self.MinMeltTempDefault)
+        self.reinitialize_txtMeltTemp_max(self.MaxMeltTempDefault)
         
     '''Set User Parameters: This function reinitializes all parameters to user set values.
     If user did not provide a parameter value, the parameters are set to default values.
@@ -220,7 +234,7 @@ class PLISH_Designer:
         if(self.combolistSpecies.get()):
             plishcode_copy.species_name = self.combolistSpecies.get()
             print("SPECIES")
-            print(plishcode.species_name)
+            print(plishcode_copy.species_name)
         #gene
         if(self.txtGene.get()):
             plishcode_copy.gene_name = self.txtGene.get()
@@ -241,22 +255,27 @@ class PLISH_Designer:
             plishcode_copy.nucleotideDatabase= self.txtDBPath.get()
         #BLAST sequence alignment thresholds (please set):
         if(self.txtEThresh.get()):
-            plishcode_copy.E_value_threshold = self.txtEThresh.get() 
+            plishcode_copy.E_value_threshold = float(self.txtEThresh.get() )
         #Salt concentration values:
         if(self.txtSaltConc.get()):
-            plishcode_copy.salt_conc = self.txtSaltConc.get()
+            plishcode_copy.salt_conc = float(self.txtSaltConc.get())
         if(self.txtpercentFormamide.get()):
-            plishcode_copy.percent_formamide = self.txtpercentFormamide.get()
+            plishcode_copy.percent_formamide = float(self.txtpercentFormamide.get())
         #Min percentGC value:
         if(self.txtMinGC.get()):
-            plishcode_copy.min_percent_GC = self.txtMinGC.get()     #minimum percentage of GC in a single Hprobe
+            plishcode_copy.min_percent_GC = float(self.txtMinGC.get())     #minimum percentage of GC in a single Hprobe
         #Max percentGC value
         if(self.txtMaxGC.get()):
-            plishcode_copy.max_percent_GC = self.txtMaxGC.get()     #maximum percentage of GC in a single Hprobe'''
+            plishcode_copy.max_percent_GC = float(self.txtMaxGC.get())     #maximum percentage of GC in a single Hprobe'''
         #end annealment values:
-        if(self.txtMaxEndAnneal.get()):
-            plishcode_copy.max_end_annealment = self.txtMaxEndAnneal.get()     #maximum number of overlaps between start and end of h_probe sequence 
+        if(self.txtHairpinDG_min.get()):
+            plishcode_copy.hairpinDG_min = float(self.txtHairpinDG_min.get())     #maximum number of overlaps between start and end of h_probe sequence 
     
+        if(self.txtMeltTemp_min.get()):
+            plishcode_copy.melt_temp_min = float(self.txtMeltTemp_min.get())     #maximum number of overlaps between start and end of h_probe sequence 
+            
+        if(self.txtMeltTemp_max.get()):
+            plishcode_copy.melt_temp_max = float(self.txtMeltTemp_max.get())     #maximum number of overlaps between start and end of h_probe sequence 
     def submitUserInput(self):
         self.setUserParams()
         global submit_in_progress
@@ -362,7 +381,7 @@ class PLISH_Designer:
         self.top.configure(background="#d9d9d9")
 
         self.btnSubmit = Button(self.top)
-        self.btnSubmit.place(relx=0.15, rely=0.79, height=33, width=89)
+        self.btnSubmit.place(relx=0.15, rely=0.9, height=33, width=89)
         self.btnSubmit.configure(activebackground="#d9d9d9")
         self.btnSubmit.configure(activeforeground="#000000")
         self.btnSubmit.configure(background="#d9d9d9")
@@ -390,7 +409,7 @@ class PLISH_Designer:
         self.btnCancel.configure(command=self.Cancel)
 
         self.Label1 = Label(self.top)
-        self.Label1.place(relx=0.01, rely=0.01, height=26, width=244)
+        self.Label1.place(relx=0.01, rely=0.01, height=26, width=330)
         self.Label1.configure(background="#d9d9d9")
         self.Label1.configure(disabledforeground="#a3a3a3")
         self.Label1.configure(foreground="#000000")
@@ -491,14 +510,14 @@ class PLISH_Designer:
         self.txtMaxGC.configure(width=84)
 
         self.Label12 = Label(self.top)
-        self.Label12.place(relx=0.01, rely=0.48, height=26, width=205)
+        self.Label12.place(relx=0.01, rely=0.59, height=26, width=205)
         self.Label12.configure(background="#d9d9d9")
         self.Label12.configure(disabledforeground="#a3a3a3")
         self.Label12.configure(foreground="#000000")
         self.Label12.configure(text='''2. Alignment MRNA Sequence:''')
 
         self.Label13 = Label(self.top)
-        self.Label13.place(relx=0.06, rely=0.52, height=26, width=118)
+        self.Label13.place(relx=0.06, rely=0.63, height=26, width=118)
         self.Label13.configure(background="#d9d9d9")
         self.Label13.configure(disabledforeground="#a3a3a3")
         self.Label13.configure(foreground="#000000")
@@ -519,27 +538,27 @@ class PLISH_Designer:
         '''
 
         self.combolistSpecies = ttk.Combobox(self.top)
-        self.combolistSpecies.place(relx=0.25, rely=0.52, relheight=0.03
+        self.combolistSpecies.place(relx=0.25, rely=0.63, relheight=0.03
                 , relwidth=0.15)
         self.combolistSpecies['values'] = ('Chicken', 'Mouse')
 
         
         self.Label8 = Label(self.top)
-        self.Label8.place(relx=0.06, rely=0.56, height=26, width=102)
+        self.Label8.place(relx=0.06, rely=0.67, height=26, width=102)
         self.Label8.configure(background="#d9d9d9")
         self.Label8.configure(disabledforeground="#a3a3a3")
         self.Label8.configure(foreground="#000000")
         self.Label8.configure(text='''2. Gene Name:''')
 
         self.Label9 = Label(self.top)
-        self.Label9.place(relx=0.06, rely=0.6, height=26, width=143)
+        self.Label9.place(relx=0.06, rely=0.71, height=26, width=143)
         self.Label9.configure(background="#d9d9d9")
         self.Label9.configure(disabledforeground="#a3a3a3")
         self.Label9.configure(foreground="#000000")
         self.Label9.configure(text='''3. Path to FASTA file:''')
 
         self.txtGene = Entry(self.top)
-        self.txtGene.place(relx=0.25, rely=0.57,height=24, relwidth=0.15)
+        self.txtGene.place(relx=0.25, rely=0.68,height=24, relwidth=0.15)
         self.txtGene.configure(background="white")
         self.txtGene.configure(disabledforeground="#a3a3a3")
         self.txtGene.configure(font="TkFixedFont")
@@ -548,7 +567,7 @@ class PLISH_Designer:
         self.txtGene.configure(width=124)
 
         self.txtFASTAPath = Entry(self.top)
-        self.txtFASTAPath.place(relx=0.25, rely=0.61,height=24, relwidth=0.15)
+        self.txtFASTAPath.place(relx=0.25, rely=0.72,height=24, relwidth=0.15)
         self.txtFASTAPath.configure(background="white")
         self.txtFASTAPath.configure(disabledforeground="#a3a3a3")
         self.txtFASTAPath.configure(font="TkFixedFont")
@@ -557,14 +576,14 @@ class PLISH_Designer:
         self.txtFASTAPath.configure(width=124)
 
         self.Label14 = Label(self.top)
-        self.Label14.place(relx=0.01, rely=0.65, height=26, width=124)
+        self.Label14.place(relx=0.01, rely=0.76, height=26, width=124)
         self.Label14.configure(background="#d9d9d9")
         self.Label14.configure(disabledforeground="#a3a3a3")
         self.Label14.configure(foreground="#000000")
         self.Label14.configure(text='''3. Input File Paths:''')
 
         self.Label15 = Label(self.top)
-        self.Label15.place(relx=0.06, rely=0.68, height=26, width=147)
+        self.Label15.place(relx=0.06, rely=0.79, height=26, width=147)
         self.Label15.configure(background="#d9d9d9")
         self.Label15.configure(disabledforeground="#a3a3a3")
         self.Label15.configure(foreground="#000000")
@@ -574,14 +593,14 @@ class PLISH_Designer:
         self.top.configure(menu = self.menubar)
         
         self.Label16 = Label(self.top)
-        self.Label16.place(relx=0.06, rely=0.72, height=26, width=139)
+        self.Label16.place(relx=0.06, rely=0.83, height=26, width=139)
         self.Label16.configure(background="#d9d9d9")
         self.Label16.configure(disabledforeground="#a3a3a3")
         self.Label16.configure(foreground="#000000")
         self.Label16.configure(text='''2. Desktop File Path:''')
 
         self.txtDBPath = Entry(self.top)
-        self.txtDBPath.place(relx=0.25, rely=0.68,height=24, relwidth=0.15)
+        self.txtDBPath.place(relx=0.25, rely=0.79,height=24, relwidth=0.15)
         self.txtDBPath.configure(background="white")
         self.txtDBPath.configure(disabledforeground="#a3a3a3")
         self.txtDBPath.configure(font="TkFixedFont")
@@ -590,7 +609,7 @@ class PLISH_Designer:
         self.txtDBPath.configure(width=124)
 
         self.txtDesktopPath = Entry(self.top)
-        self.txtDesktopPath.place(relx=0.25, rely=0.72, height=24, relwidth=0.15)
+        self.txtDesktopPath.place(relx=0.25, rely=0.83, height=24, relwidth=0.15)
 
         self.txtDesktopPath.configure(background="white")
         self.txtDesktopPath.configure(disabledforeground="#a3a3a3")
@@ -600,7 +619,7 @@ class PLISH_Designer:
         self.txtDesktopPath.configure(width=124)
         
         global progressBarValue
-        self.TProgressbar1 = ttk.Progressbar(self.top, mode = 'indeterminate')
+        self.TProgressbar1 = ttk.Progressbar(self.top, mode = 'determinate')
         #progress= ttk.Progressbar(root, orient = 'horizontal', maximum = 10000, variable=downloaded, mode = 'determinate')
 
         self.TProgressbar1.place(relx=0.68, rely=0.27, relwidth=0.12
@@ -679,20 +698,52 @@ class PLISH_Designer:
         self.Label24.configure(width=202)
 
         self.Label25 = Label(self.top)
-        self.Label25.place(relx=0.06, rely=0.45, height=26, width=131)
+        self.Label25.place(relx=0.049, rely=0.45, height=26, width=131)
         self.Label25.configure(background="#d9d9d9")
         self.Label25.configure(disabledforeground="#a3a3a3")
         self.Label25.configure(foreground="#000000")
-        self.Label25.configure(text='''4. Max End Anneal:''')
+        self.Label25.configure(text='''4. HairpinDG_min:''')
 
-        self.txtMaxEndAnneal = Entry(self.top)
-        self.txtMaxEndAnneal.place(relx=0.3, rely=0.45,height=24, relwidth=0.1)
-        self.txtMaxEndAnneal.configure(background="white")
-        self.txtMaxEndAnneal.configure(disabledforeground="#a3a3a3")
-        self.txtMaxEndAnneal.configure(font="TkFixedFont")
-        self.txtMaxEndAnneal.configure(foreground="#000000")
-        self.txtMaxEndAnneal.configure(insertbackground="black")
-        self.txtMaxEndAnneal.configure(width=84)
+        self.txtHairpinDG_min = Entry(self.top)
+        self.txtHairpinDG_min.place(relx=0.3, rely=0.45,height=24, relwidth=0.1)
+        self.txtHairpinDG_min.configure(background="white")
+        self.txtHairpinDG_min.configure(disabledforeground="#a3a3a3")
+        self.txtHairpinDG_min.configure(font="TkFixedFont")
+        self.txtHairpinDG_min.configure(foreground="#000000")
+        self.txtHairpinDG_min.configure(insertbackground="black")
+        self.txtHairpinDG_min.configure(width=84)
+        
+        self.Label25 = Label(self.top)
+        self.Label25.place(relx=0.049, rely=0.49, height=26, width=131)
+        self.Label25.configure(background="#d9d9d9")
+        self.Label25.configure(disabledforeground="#a3a3a3")
+        self.Label25.configure(foreground="#000000")
+        self.Label25.configure(text='''5. MeltTemp_min:''')
+
+        self.txtMeltTemp_min = Entry(self.top)
+        self.txtMeltTemp_min.place(relx=0.3, rely=0.49,height=24, relwidth=0.1)
+        self.txtMeltTemp_min.configure(background="white")
+        self.txtMeltTemp_min.configure(disabledforeground="#a3a3a3")
+        self.txtMeltTemp_min.configure(font="TkFixedFont")
+        self.txtMeltTemp_min.configure(foreground="#000000")
+        self.txtMeltTemp_min.configure(insertbackground="black")
+        self.txtMeltTemp_min.configure(width=84)
+        
+        self.Label25 = Label(self.top)
+        self.Label25.place(relx=0.049, rely=0.53, height=26, width=131)
+        self.Label25.configure(background="#d9d9d9")
+        self.Label25.configure(disabledforeground="#a3a3a3")
+        self.Label25.configure(foreground="#000000")
+        self.Label25.configure(text='''6. MeltTemp_max:''')
+
+        self.txtMeltTemp_max = Entry(self.top)
+        self.txtMeltTemp_max.place(relx=0.3, rely=0.53,height=24, relwidth=0.1)
+        self.txtMeltTemp_max.configure(background="white")
+        self.txtMeltTemp_max.configure(disabledforeground="#a3a3a3")
+        self.txtMeltTemp_max.configure(font="TkFixedFont")
+        self.txtMeltTemp_max.configure(foreground="#000000")
+        self.txtMeltTemp_max.configure(insertbackground="black")
+        self.txtMeltTemp_max.configure(width=84)
 
         self.btnSetDefaults = Button(self.top)
         self.btnSetDefaults.place(relx=0.18, rely=0.1, height=33, width=92)
@@ -706,6 +757,8 @@ class PLISH_Designer:
         self.btnSetDefaults.configure(pady="0")
         self.btnSetDefaults.configure(text='''Set Defaults''')
         self.btnSetDefaults.configure(command=self.setDefaultEntries)
+        
+        
 
 if __name__ == '__main__':
     vp_start_gui()

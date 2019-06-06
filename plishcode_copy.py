@@ -42,7 +42,7 @@ desktop_path = "/Users/tompritsky/Desktop"
 BLAST_xml_path = "/Users/tompritsky/Desktop/HellerLab/PLISH_SCRIPTS/blast_RUN.xml"
 
 #Path to FASTA file for mrna of gene of interest (please set)
-FASTA_file = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg__coding_seq.txt"
+FASTA_file = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg_c14orf_coding_seq.txt"
 
 #Nucleotide database
 #nucleotideDatabase="/Users/tompritsky/Desktop/HellerLab/gallus_gallus.fasta"
@@ -865,6 +865,11 @@ def printToExcel():
     
     #Output probe metrics to console
     probeMetrics(potential_Hprobe_pairs)
+    
+    #print hairpinDG_min for debugging
+    print(hairpinDG_min)
+    print(hairpinDG_min)
+    print(max_percent_GC)
     
     print("Length of potential_Hprobe_pairs in printToExcel: " + str(len(potential_Hprobe_pairs)))
     for hprobe_pair in potential_Hprobe_pairs:
