@@ -7,7 +7,13 @@ mrna_sequence = mrna_sequence_amanda.upper()    #Use a preloaded mRNA sequence
 
 #import libraries: 
 #import cmath    #use for mathematics
+
+#import plotting functions
 import matplotlib.pyplot as plt
+import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
+
+
 import math
 import pandas as pd
 import sys
@@ -42,7 +48,7 @@ desktop_path = "/Users/tompritsky/Desktop"
 BLAST_xml_path = "/Users/tompritsky/Desktop/HellerLab/PLISH_SCRIPTS/blast_RUN.xml"
 
 #Path to FASTA file for mrna of gene of interest (please set)
-FASTA_file = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg_c14orf_coding_seq.txt"
+FASTA_file = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/IFI6__gg_coding_seq.txt"
 
 #Nucleotide database
 #nucleotideDatabase="/Users/tompritsky/Desktop/HellerLab/gallus_gallus.fasta"
@@ -57,14 +63,21 @@ percent_formamide = 30
 #melt_temp = 0
 
 #percentGC values (please set):
-min_percent_GC = 55.0149253731343 - 1.5*8.18487976462124     #minimum percentage of GC in a single Hprobe
-max_percent_GC = 55.0149253731343 + 1.5*8.18487976462124    #maximum percentage of GC in a single Hprobe
+#min_percent_GC = 55.0149253731343 - 1.5*8.18487976462124     #minimum percentage of GC in a single Hprobe
+#max_percent_GC = 55.0149253731343 + 1.5*8.18487976462124    #maximum percentage of GC in a single Hprobe
+
+min_percent_GC = 0     #minimum percentage of GC in a single Hprobe
+max_percent_GC = 100    #maximum percentage of GC in a single Hprobe
 
 #end annealment values (please set):
 max_end_annealment = 2      #maximum number of overlaps between start and end of h_probe sequence
 
 #Initiator Sequence: Alexa 647
-initiator_sequence = "gAggAgggCAgCAAACgggAAgAgTCTTCCTTTACg"
+initiator_sequence_dictionary = {'B1':'gAggAgggCAgCAAACgggAAgAgTCTTCCTTTACg', 'B2':'CCTCgTAAATCCTCATCAATCATCCAgTAAACCgCC', 'B3':'gTCCCTgCCTCTATATCTCCACTCAACTTTAACCCg', 'B4':'CCTCAACCTACCTCCAACTCTCACCATATTCgCTTC', 'B5':'CTCACTCCCAATCTCTATCTACCCTACAAATCCAAT'}
+initiator_label_list = (initiator_sequence_dictionary.keys())
+initiator_label = 'B3'
+initiator_sequence = initiator_sequence_dictionary.get(initiator_label, "The initiator label " + str(initiator_label) + " has not been defined, please specify another.")
+print("Initiator Sequence: " + initiator_sequence)
 initiator_sequence = initiator_sequence.upper() #TROJAN EDIT: Why doesn't .upper on line 587/588 work?
 
 '''Default Probe Constants: Aren't Set by GUI
@@ -83,14 +96,18 @@ poss_initiator_sequences = {}
 
 '''Primer3 thermodynamic consts: Will be set by GUI; currently pre-set
 ---------------------------------------------------------------------------'''
-hairpinDG_min = -0.49763270587821-0.978872719822112;      #minimum value for the hairpin DG formation, in Kcal/mol (more negative DG, more stable hairpin)
+#hairpinDG_min = -0.49763270587821-0.978872719822112;      #minimum value for the hairpin DG formation, in Kcal/mol (more negative DG, more stable hairpin)
+hairpinDG_min = -100
 homodimerDG_min = -5.19 -2.67;
 heterodimerDG_min = -6;
 #melt_temp_min = 0
 #melt_temp_max = 100
 
-melt_temp_min = 64.3692549489138 - 0*3.35580070349471      #need to fill in 
-melt_temp_max = 64.3692549489138 + 2*3.35580070349471
+#melt_temp_min = 64.3692549489138 - 0*3.35580070349471      #need to fill in 
+#melt_temp_max = 64.3692549489138 + 2*3.35580070349471
+
+melt_temp_min = 0      #need to fill in 
+melt_temp_max = 100
 
 
 '''Internal variables:
@@ -223,14 +240,27 @@ def probeMetrics(hprobe_pairs):
     MeltingTempList = probe_results['Melting Temperature'].tolist()
     HairpinDGList = probe_results['HairpinDG (Kcal/mol)'].tolist()
     
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(PercentGCList, MeltingTempList, HairpinDGList)
+    
+    ax.set_xlabel('Percent_GC')
+    ax.set_ylabel('Melting Temperature')
+    ax.set_zlabel('HairpinDG (Kcal/mol)')
+    
+    #PercentGCList, MeltingTempList = np.meshgrid(PercentGCList, MeltingTempList)
+    #ax.plot_surface(PercentGCList, MeltingTempList, HairpinDGList, rstride=1, cstride=1, cmap=cm.viridis)
+    plt.title("Probe Distribution")
+    plt.show()
+    
     #plt.hist(PercentGCList)
     #plt.show()
     #plt.hist(MeltingTempList)
     #plt.title("c14orf Melting Temp")
     #plt.show()
-    plt.hist(HairpinDGList)
-    plt.title("c14orf Hairpin_DG")
-    plt.show()
+    #plt.hist(HairpinDGList)
+    #plt.title("c14orf Hairpin_DG")
+    #plt.show()
     
 
 '''Internal Functions: Used to perform probe operations and calculate probe parameters, such as percent

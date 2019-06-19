@@ -149,6 +149,7 @@ class PLISH_Designer:
     DBPathDefault = "/Users/tompritsky/Desktop/HellerLab/dataSets/Gallus_Gallus_Exons_and_UTR/-Gallus_Gallus_Exons_and_UTR"
     DesktopPathDefault = "/Users/tompritsky/Desktop"
     GeneValueDefault= "Otoferlin"
+    initiatorDefault= "B1"
     MinMeltTempDefault = str(64.3692549489138 - 0*3.35580070349471) #reset
     MaxMeltTempDefault = str(64.3692549489138 + 2*3.35580070349471) #reset
     top = None
@@ -206,6 +207,10 @@ class PLISH_Designer:
     def reinitialize_txtDesktopPath(self, value):
         self.txtDesktopPath.delete(0, END)
         self.txtDesktopPath.insert(0, value)
+    def reinitialize_combolistInitiators(self, value): 
+        self.combolistInitiators.delete(0, END)
+        self.combolistInitiators.insert(0, value)
+
     '''Need to check if this also works for progress bar
     def reinitialize_TProgressbar1(self, value):
         self.txtSeqNum.delete(0, END)
@@ -224,6 +229,7 @@ class PLISH_Designer:
         self.reinitialize_txtDesktopPath(self.DesktopPathDefault)
         self.reinitialize_txtMeltTemp_min(self.MinMeltTempDefault)
         self.reinitialize_txtMeltTemp_max(self.MaxMeltTempDefault)
+        self.reinitialize_combolistInitiators(self.initiatorDefault)
         
     '''Set User Parameters: This function reinitializes all parameters to user set values.
     If user did not provide a parameter value, the parameters are set to default values.
@@ -231,6 +237,10 @@ class PLISH_Designer:
     
     def setUserParams(self):
         #species
+        if(self.combolistInitiators.get()):
+            plishcode_copy.initiator_label = self.combolistInitiators.get()
+            plishcode_copy.initiator_sequence = plishcode_copy.initiator_sequence_dictionary.get(plishcode_copy.initiator_label, "The initiator label " + str(plishcode_copy.initiator_label) + " has not been defined, please specify another.")
+        
         if(self.combolistSpecies.get()):
             plishcode_copy.species_name = self.combolistSpecies.get()
             print("SPECIES")
@@ -434,7 +444,7 @@ class PLISH_Designer:
         self.Label4.configure(background="#d9d9d9")
         self.Label4.configure(disabledforeground="#a3a3a3")
         self.Label4.configure(foreground="#000000")
-        self.Label4.configure(text='''a. Melt. Temperature Parameters:''')
+        self.Label4.configure(text='''A. Melt. Temperature Parameters:''')
 
         self.Label5 = Label(self.top)
         self.Label5.place(relx=0.06, rely=0.22, height=26, width=150)
@@ -464,7 +474,7 @@ class PLISH_Designer:
         self.Label7.configure(background="#d9d9d9")
         self.Label7.configure(disabledforeground="#a3a3a3")
         self.Label7.configure(foreground="#000000")
-        self.Label7.configure(text='''b. Thresholds''')
+        self.Label7.configure(text='''B. Thresholds''')
 
         self.txtpercentFormamide = Entry(self.top)
         self.txtpercentFormamide.place(relx=0.3, rely=0.27, height=24
@@ -510,7 +520,7 @@ class PLISH_Designer:
         self.txtMaxGC.configure(width=84)
 
         self.Label12 = Label(self.top)
-        self.Label12.place(relx=0.01, rely=0.59, height=26, width=205)
+        self.Label12.place(relx=0.01, rely=0.60, height=26, width=205)
         self.Label12.configure(background="#d9d9d9")
         self.Label12.configure(disabledforeground="#a3a3a3")
         self.Label12.configure(foreground="#000000")
@@ -522,6 +532,8 @@ class PLISH_Designer:
         self.Label13.configure(disabledforeground="#a3a3a3")
         self.Label13.configure(foreground="#000000")
         self.Label13.configure(text='''1. Species Name:''')
+        
+        
 
         '''
         self.listboxSpecies = Listbox(self.top)
@@ -698,7 +710,7 @@ class PLISH_Designer:
         self.Label24.configure(width=202)
 
         self.Label25 = Label(self.top)
-        self.Label25.place(relx=0.049, rely=0.45, height=26, width=131)
+        self.Label25.place(relx=0.051, rely=0.45, height=26, width=131)
         self.Label25.configure(background="#d9d9d9")
         self.Label25.configure(disabledforeground="#a3a3a3")
         self.Label25.configure(foreground="#000000")
@@ -714,7 +726,7 @@ class PLISH_Designer:
         self.txtHairpinDG_min.configure(width=84)
         
         self.Label25 = Label(self.top)
-        self.Label25.place(relx=0.049, rely=0.49, height=26, width=131)
+        self.Label25.place(relx=0.050, rely=0.49, height=26, width=131)
         self.Label25.configure(background="#d9d9d9")
         self.Label25.configure(disabledforeground="#a3a3a3")
         self.Label25.configure(foreground="#000000")
@@ -730,11 +742,22 @@ class PLISH_Designer:
         self.txtMeltTemp_min.configure(width=84)
         
         self.Label25 = Label(self.top)
-        self.Label25.place(relx=0.049, rely=0.53, height=26, width=131)
+        self.Label25.place(relx=0.052, rely=0.53, height=26, width=131)
         self.Label25.configure(background="#d9d9d9")
         self.Label25.configure(disabledforeground="#a3a3a3")
         self.Label25.configure(foreground="#000000")
         self.Label25.configure(text='''6. MeltTemp_max:''')
+        
+        self.Label7 = Label(self.top)
+        self.Label7.place(relx=0.03, rely=0.57, height=26, width=93)
+        self.Label7.configure(background="#d9d9d9")
+        self.Label7.configure(disabledforeground="#a3a3a3")
+        self.Label7.configure(foreground="#000000")
+        self.Label7.configure(text='''C. Initiator''')
+        
+        self.combolistInitiators = ttk.Combobox(self.top)
+        self.combolistInitiators.place(relx=0.25, rely=0.57, relheight=0.03, relwidth=0.15)
+        self.combolistInitiators['values'] = plishcode_copy.initiator_label_list
 
         self.txtMeltTemp_max = Entry(self.top)
         self.txtMeltTemp_max.place(relx=0.3, rely=0.53,height=24, relwidth=0.1)
