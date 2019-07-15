@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+#orientation note:
+#input mRNA is oriented 3' to 5'; therefore probes produced are oriented 5' to 3'
+
 mrna_sequence_amanda = "CGTTGTTGTTCACATAAACCGTCCTTAGTATGATGACAATATAGCCAGGCGTTGTTGTTCACATAAACCGTCCTTAGTATGATGACAATATAGCCAGG"
 mrna_sequence = mrna_sequence_amanda.upper()    #Use a preloaded mRNA sequence
 
@@ -13,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
-
+import copy
 import math
 import pandas as pd
 import sys
@@ -88,8 +91,8 @@ spacer_sequence = "TT"
 spacer_sequence = spacer_sequence.upper()
 
 #Length of probe alignment sequence
-alignment_sequence_length = 50      #MUST BE EVEN; stores complete length of alignment with mrna sequence
-alignment_probe_length = alignment_sequence_length/2    #stores length of alignment region on each probe
+alignment_probe_length = 25    #stores length of alignment region on each probe
+alignment_sequence_length = alignment_probe_length*2 + 2     #MUST BE EVEN; stores complete length of alignment with mrna sequence, plus two extra nucleotides between probe halves 
 
 #Initiator Sequence List
 poss_initiator_sequences = {}
@@ -124,6 +127,126 @@ specific_40bp_sequences_reverseComp = {}        #store all sequences with 0, 1, 
 potential_Hprobe_pairs = []     #stores potential Hprobe pairs
 valid_Hprobe_pairs = []     #stores valid Hprobe pairs
 
+'''probe offset preparation (NEW):
+_________________________________________________________________'''
+
+potential_overlap_dict = {}       #store potential overlap dictionary for each probe
+valid_key_list = []     #stores indices of all successful probes, after filtering and BLAST alignment (reported from 3' end of gene of interest)
+actual_overlap_dict = {}    #stores dictionary with key = probe indice and value = num_overlaps
+adjusted_overlap_dict = {} #stores dictionary with key = probe indice and value = list of valid overlapping probes
+valid_key_dictionary = {}   #stores each valid probe indice, as well as the number of BLAST alignments for that probe
+
+#create dictionary of every potential valid indice and all it's potential overlaps. Receives arguments of 
+#length (length of alignment mrna sequence), size (length of left and right probes and two nucleotide spacer),
+#and overlap_max_nucleotides (the maximum number of valid nucleotide overlaps between two probe sets)
+def create_potential_overlap_dict(length, size, overlap_max_nucleotides):
+  overlap_dict = {}
+  valid_indices = []
+  for indice in range(0, length):
+        if int(indice) + size <= length:    #if int(indice) - 25 >= 0 and len(mrna_sequence) - int(indice) >=25: 
+            valid_indices.append(indice)
+  for i in valid_indices:
+    overlap_list = list(range(i + 1, i+size - overlap_max_nucleotides))
+    overlap_list_to_keep = []
+    for j in overlap_list:
+      if(j in valid_indices):
+        overlap_list_to_keep.append(j)
+    overlap_dict.update({i:overlap_list_to_keep})
+  return overlap_dict
+
+#create dictionary of each valid indice and a list of all the valid indices it overlaps
+def create_adjusted_overlap_dict(pot_overlap_dict, val_key_list):
+  adjusted_overlap_dict = copy.deepcopy(pot_overlap_dict)
+  for key, value in pot_overlap_dict.items():
+    for indice in value:
+      if(indice not in val_key_list):
+        adjusted_overlap_dict[key].remove(indice)
+  return adjusted_overlap_dict
+
+#create dictionary storing every valid indice and the number of overlaps it has with other valid indices
+def create_actual_overlap_dict(pot_overlap_dict, val_key_list):
+  overlap_dict = {}
+  for key in val_key_list:
+    num_overlaps = 0
+    for value in pot_overlap_dict[key]:
+      if value in val_key_list:
+        num_overlaps += 1
+    overlap_dict.update({key: num_overlaps}) 
+  return overlap_dict
+
+def filter_by_overlaps(valid_key_list):
+    potential_overlap_dict = create_potential_overlap_dict(len(mrna_sequence), alignment_sequence_length, overlap_max_nucleotides = -2)
+    actual_overlap_dict = create_actual_overlap_dict(potential_overlap_dict, valid_key_list)    #stores list of valid probe dictionaries with key = probe indice and value = num_overlaps
+    adjusted_overlap_dict = create_adjusted_overlap_dict(potential_overlap_dict, valid_key_list)   #list of probe dictionaries with key = probe indice and value = valid probe overlap indices (invalid probe overlaps are removed)
+    
+    temp_valid_key_list = copy.deepcopy(valid_key_list)
+    temp_valid_key_list.sort()
+    current_indice = 0
+    while(current_indice < len(temp_valid_key_list)):  
+      #print("Iteration " + str(current_indice))
+      current_key = temp_valid_key_list[current_indice]
+      #print("current key " + str(current_key))
+      #print("current indice: " +str(current_indice))
+      if( not any(i in adjusted_overlap_dict[current_key]  for i in temp_valid_key_list)):
+        current_indice += 1
+        #print("Current indice has no overlaps")
+        #print("\n")
+      else:
+        print("Temp valid key list: " + str(temp_valid_key_list))
+        formated_section_temp_valid_key_list = temp_valid_key_list[0:current_indice]    #store segment of list that is already formatted
+        unformatted_section_temp_valid_key_list = temp_valid_key_list[current_indice:]
+        #print("unformatted_section_temp_valid_key_list: " +str(unformatted_section_temp_valid_key_list))
+        unformatted_section_temp_valid_key_list = filter_by_overlaps_helper(unformatted_section_temp_valid_key_list, adjusted_overlap_dict, actual_overlap_dict, 0)
+        #print("unformatted_section_temp_valid_key_list: " +str(unformatted_section_temp_valid_key_list))
+        temp_valid_key_list = formated_section_temp_valid_key_list + unformatted_section_temp_valid_key_list
+        
+        #print("updated Temp_valid key list: " + str(temp_valid_key_list))
+        if( set(adjusted_overlap_dict[temp_valid_key_list[0]]).isdisjoint(temp_valid_key_list)):         #
+          #print("moved to next indice")  
+          current_indice += 1 
+    return temp_valid_key_list
+
+#this function removes all overlapping probes from a set of overlapping probes, excluding the probe with least overlaps total
+def filter_by_overlaps_helper(valid_key_list, adjusted_overlap_dict, actual_overlap_dict, current_indice):
+  
+  temp_list_new = copy.deepcopy(valid_key_list)
+  
+  current_key = valid_key_list[current_indice]
+  #print("FBO: current key: " + str(current_key))
+  min_overlaps = actual_overlap_dict[current_key]  #get number of overlaps of first valid probe
+  min_overlap_indice = current_key      #get indice of first valid probe
+  #print(min_overlaps)
+  
+  #iterate through all valid overlaps for first valid probe
+  for valid_key_overlap in adjusted_overlap_dict[current_key]:
+    if(actual_overlap_dict[valid_key_overlap] < min_overlaps):    #check if a given overlapping probe has less overlaps than the current probe with least overlaps
+      min_overlaps = actual_overlap_dict[valid_key_overlap]       #adjust min overlaps
+      min_overlap_indice = valid_key_overlap         #adjust indice of minimal overlap probe
+  
+
+  #print("temp_list_new " + str(temp_list_new))
+  #print("adjusted_overlap_dict: " + str(adjusted_overlap_dict))
+  #print("adjutsed_overlap_dict of current key: " + str(adjusted_overlap_dict[current_key]))
+  #print("actual overlap dict: " + str(actual_overlap_dict))
+ 
+  #print("Min overlap indice: " + str(min_overlap_indice))
+  
+  #remove all overlaps of min_overlap_indice 
+  temp_list_new = list(set(temp_list_new)- set(adjusted_overlap_dict[min_overlap_indice]))
+  temp_list_new.sort()
+  #print("Temp List New: " + str(temp_list_new))
+  
+  #remove all indices before min_overlap_indice, unless min_overlap indice is first indice 
+  if(min_overlap_indice != current_key):
+    new_lowest_indice = temp_list_new.index(min_overlap_indice)
+    temp_list_new = temp_list_new[new_lowest_indice:]
+  
+  #temp_list_new = list(set(temp_list_new) & set(set(temp_list_new)^set(adjusted_overlap_dict[min_overlap_indice])))
+  #print("temp_list new: " + str(temp_list_new))
+  
+  #print(temp_list_new)
+  temp_list_new.sort()
+  return temp_list_new
 
 '''Internal Classes: Contains the hprobe and Hprobe_pair classes, which are 
 used to store data about the Hprobes designed by the PLISH algorithm
@@ -577,7 +700,7 @@ def extractSequences(mrna_sequence):
     #test and print the start indices to ensure hprobes remain within bounds of mrna 
     '''EDIT'''
     for indice in range(0, len(mrna_sequence)-1):
-        if int(indice) + alignment_sequence_length <= len(mrna_sequence):    #if int(indice) - 25 >= 0 and len(mrna_sequence) - int(indice) >=25: 
+        if int(indice) + alignment_sequence_length + 2 <= len(mrna_sequence):    #if int(indice) - 25 >= 0 and len(mrna_sequence) - int(indice) >=25: add 2 nucleotides to account for spacer between left and rigt probe halves
             valid_indices.append(indice)
     print("\nValid Start Indices:")   #prints valid start indices for potential hprobe pair
     print(valid_indices)     
@@ -589,7 +712,7 @@ def extractSequences(mrna_sequence):
         key equals the indice and value equals the sequence'''
     '''EDIT'''
     for i in valid_indices:
-        potential_full_binding_sequences[i] = mrna_sequence[i:i+alignment_sequence_length]  
+        potential_full_binding_sequences[i] = mrna_sequence[i:i+alignment_sequence_length + 2]  
     
     #Print all potential hprobe sequences
     print("\nPotential Hprobe Sequences:")
@@ -615,7 +738,7 @@ def test_H_Probe(key, value, num_iterations):
     left_hprobe_binding_sequence = value[0:alignment_probe_length]  #get corresponding mrna sequence (left probe)
     #left_hprobe_sequence = reverseComplement(left_hprobe_sequence)  #get complementary hprobe sequence (left probe)
     left_hprobe_binding_sequence = reverseString(left_hprobe_binding_sequence)  #reverse directionality (left probe)
-    right_hprobe_binding_sequence = value[alignment_probe_length:alignment_sequence_length]
+    right_hprobe_binding_sequence = value[alignment_probe_length+2:alignment_sequence_length]
     #left_hprobe_sequence = reverseComplement(left_hprobe_sequence)
     right_hprobe_binding_sequence = reverseString(right_hprobe_binding_sequence)
     
@@ -723,15 +846,21 @@ def sortBLASTOutput(key, value, counter, record_ID):
     
     '''store sequences with 0,1,2, and multiple alignment counts. Sequences are stored
     in a dictionary ____alignments depending on the number of alignments. The key is 
-    equal to the sequence start indice and the values equivalent to the nucleotide sequence.'''
+    equal to the sequence start indice and the values equivalent to the nucleotide sequence.
+    Additionally, store all valid probes into valid_key_dictionary dictionary so that overlaps can
+    be reomved by filter_by_overlaps function. Keys in valid key dictionary are the sequence start
+    indice and values are the number or alignments.'''
     if len(potential_alignments) == 0:
         zero_alignment_full_binding_sequences[key] = value
+        valid_key_dictionary.update({key:len(potential_alignments)})
         print ("found zero alignment sequence")
     elif len(potential_alignments) == 1:
         one_alignment_full_binding_sequences[key] = value
+        valid_key_dictionary.update({key:len(potential_alignments)})
         print ("found one alignment sequence")
     elif len(potential_alignments) == 2:
         two_alignment_full_binding_sequences[key] = value
+        valid_key_dictionary.update({key:len(potential_alignments)})
         print ("found two alignment sequence")
     else:
         mult_alignment_full_binding_sequences[key] = value
@@ -830,7 +959,7 @@ def create_H_Probes():
             left_hprobe_binding_sequence = value[0][0:alignment_probe_length]  #get corresponding mrna sequence (left probe)
             #left_hprobe_sequence = reverseComplement(left_hprobe_sequence)  #get complementary hprobe sequence (left probe)
             left_hprobe_binding_sequence = reverseString(left_hprobe_binding_sequence)  #reverse directionality (left probe)
-            right_hprobe_binding_sequence = value[0][alignment_probe_length:alignment_sequence_length]
+            right_hprobe_binding_sequence = value[0][alignment_probe_length+2:alignment_sequence_length]
             #left_hprobe_sequence = reverseComplement(left_hprobe_sequence)
             right_hprobe_binding_sequence = reverseString(right_hprobe_binding_sequence)
             

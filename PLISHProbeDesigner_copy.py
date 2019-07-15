@@ -15,6 +15,7 @@ import tkMessageBox
 import ttk
 import plishcode_copy
 import sysconfig
+import copy
 
 #Boolean indicating whether submit has been toggled
 submit_in_progress = False
@@ -90,6 +91,35 @@ def reinitialize_minGC_label(root, currentSequence, sequenceNumber, progressBar,
     def count():
         global i
         if(i == len(value)):    #once I've gone through all the sequences, I finalize
+            
+            #run filtering to remove overlapping probes
+            
+            #Note: keys in valid_key_dictionary are sequence start indices and values are the number of alignments
+            plishcode_copy.valid_key_list = plishcode_copy.valid_key_dictionary.keys()
+            non_overlapping_sequence_indices = plishcode_copy.filter_by_overlaps(plishcode_copy.valid_key_list) #stores valid, non-overlapping sequence indices
+            print("Non overlapping Probes: " + str(non_overlapping_sequence_indices))
+            
+            #reinitialize final probe dictionaries with probes filtered by overlaps
+            zero_alignment_dict = {}
+            one_alignment_dict =  {}
+            two_alignment_dict = {}
+            
+            
+            for i in non_overlapping_sequence_indices:
+                if plishcode_copy.valid_key_dictionary[i] == 0:
+                    sequence = plishcode_copy.zero_alignment_full_binding_sequences[i]
+                    zero_alignment_dict.update({i:sequence})
+                if plishcode_copy.valid_key_dictionary[i] == 1:
+                    sequence = plishcode_copy.one_alignment_full_binding_sequences[i]
+                    one_alignment_dict.update({i:sequence})
+                if plishcode_copy.valid_key_dictionary[i] == 2:
+                    sequence = plishcode_copy.two_alignment_full_binding_sequences[i]
+                    two_alignment_dict.update({i:sequence})
+            
+            plishcode_copy.zero_alignment_full_binding_sequences = copy.deepcopy(zero_alignment_dict)
+            plishcode_copy.one_alignment_full_binding_sequences = copy.deepcopy(one_alignment_dict)
+            plishcode_copy.two_alignment_full_binding_sequences = copy.deepcopy(two_alignment_dict)
+            
             finalize()
             return
         if(i < len(value)):
@@ -145,13 +175,14 @@ class PLISH_Designer:
     EThreshDefault = ".9"
     MaxEndAnnealDefault = "2"
     MinHairpinDGDefault = str(-0.49763270587821-0.978872719822112)  
-    FASTAPathDefault = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg_c14orf_coding_seq.txt"
+    FASTAPathDefault = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg_CLDN1_full_seq.txt"
     DBPathDefault = "/Users/tompritsky/Desktop/HellerLab/dataSets/Gallus_Gallus_Exons_and_UTR/-Gallus_Gallus_Exons_and_UTR"
     DesktopPathDefault = "/Users/tompritsky/Desktop"
     GeneValueDefault= "Otoferlin"
     initiatorDefault= "B1"
     MinMeltTempDefault = str(64.3692549489138 - 0*3.35580070349471) #reset
     MaxMeltTempDefault = str(64.3692549489138 + 2*3.35580070349471) #reset
+    ProbeLengthDefault = 25
     top = None
     counter = 0
     
@@ -161,6 +192,9 @@ class PLISH_Designer:
     def reinitialize_txtpercentFormamide(self, value):
         self.txtpercentFormamide.delete(0, END)
         self.txtpercentFormamide.insert(0, value)
+    def reinitialize_txtProbeLength(self, value):
+        self.txtProbeLength.delete(0, END)
+        self.txtProbeLength.insert(0, value)
     def reinitialize_txtMinGC(self, value):
         self.txtMinGC.delete(0, END)
         self.txtMinGC.insert(0, value)
@@ -219,6 +253,7 @@ class PLISH_Designer:
     def setDefaultEntries(self):
         self.reinitialize_txtSaltConc(self.SaltConcDefault)
         self.reinitialize_txtpercentFormamide(self.percentFormamideDefault)
+        self.reinitialize_txtProbeLength(self.ProbeLengthDefault)
         self.reinitialize_txtMinGC(self.MinGCDefault)
         self.reinitialize_txtMaxGC(self.MaxGCDefault)
         self.reinitialize_txtEThresh(self.EThreshDefault)
@@ -271,6 +306,8 @@ class PLISH_Designer:
             plishcode_copy.salt_conc = float(self.txtSaltConc.get())
         if(self.txtpercentFormamide.get()):
             plishcode_copy.percent_formamide = float(self.txtpercentFormamide.get())
+        if(self.txtProbeLength.get()):
+            plishcode_copy.alignment_probe_length = int(self.txtProbeLength.get())
         #Min percentGC value:
         if(self.txtMinGC.get()):
             plishcode_copy.min_percent_GC = float(self.txtMinGC.get())     #minimum percentage of GC in a single Hprobe
@@ -426,35 +463,35 @@ class PLISH_Designer:
         self.Label1.configure(text='''Welcome to the Caltech Protocol Probe Designer''')
 
         self.Label2 = Label(self.top)
-        self.Label2.place(relx=0.01, rely=0.1, height=26, width=121)
+        self.Label2.place(relx=0.01, rely=0.08, height=26, width=121)
         self.Label2.configure(background="#d9d9d9")
         self.Label2.configure(disabledforeground="#a3a3a3")
         self.Label2.configure(foreground="#000000")
         self.Label2.configure(text='''Input Parameters:''')
         
         self.Label3 = Label(self.top)
-        self.Label3.place(relx=0.01, rely=0.16, height=26, width=131)
+        self.Label3.place(relx=0.01, rely=0.12, height=26, width=131)
         self.Label3.configure(background="#d9d9d9")
         self.Label3.configure(disabledforeground="#a3a3a3")
         self.Label3.configure(foreground="#000000")
         self.Label3.configure(text='''1. Probe Constants:''')
 
         self.Label4 = Label(self.top)
-        self.Label4.place(relx=0.04, rely=0.19, height=26, width=224)
+        self.Label4.place(relx=0.04, rely=0.15, height=26, width=224)
         self.Label4.configure(background="#d9d9d9")
         self.Label4.configure(disabledforeground="#a3a3a3")
         self.Label4.configure(foreground="#000000")
         self.Label4.configure(text='''A. Melt. Temperature Parameters:''')
 
         self.Label5 = Label(self.top)
-        self.Label5.place(relx=0.06, rely=0.22, height=26, width=150)
+        self.Label5.place(relx=0.06, rely=0.19, height=26, width=150)
         self.Label5.configure(background="#d9d9d9")
         self.Label5.configure(disabledforeground="#a3a3a3")
         self.Label5.configure(foreground="#000000")
         self.Label5.configure(text='''1. Salt Concentration:''')
 
         self.txtSaltConc = Entry(self.top)
-        self.txtSaltConc.place(relx=0.3, rely=0.23,height=24, relwidth=0.1)
+        self.txtSaltConc.place(relx=0.3, rely=0.19,height=24, relwidth=0.1)
         self.txtSaltConc.configure(background="white")
         self.txtSaltConc.configure(disabledforeground="#a3a3a3")
         self.txtSaltConc.configure(font="TkFixedFont")
@@ -463,21 +500,21 @@ class PLISH_Designer:
         self.txtSaltConc.configure(width=84)
 
         self.Label6 = Label(self.top)
-        self.Label6.place(relx=0.06, rely=0.26, height=26, width=116)
+        self.Label6.place(relx=0.06, rely=0.23, height=26, width=116)
         self.Label6.configure(background="#d9d9d9")
         self.Label6.configure(disabledforeground="#a3a3a3")
         self.Label6.configure(foreground="#000000")
         self.Label6.configure(text='''2. % Formamide:''')
 
         self.Label7 = Label(self.top)
-        self.Label7.place(relx=0.04, rely=0.3, height=26, width=93)
+        self.Label7.place(relx=0.04, rely=0.30, height=26, width=93)
         self.Label7.configure(background="#d9d9d9")
         self.Label7.configure(disabledforeground="#a3a3a3")
         self.Label7.configure(foreground="#000000")
         self.Label7.configure(text='''B. Thresholds''')
 
         self.txtpercentFormamide = Entry(self.top)
-        self.txtpercentFormamide.place(relx=0.3, rely=0.27, height=24
+        self.txtpercentFormamide.place(relx=0.3, rely=0.23, height=24
                 , relwidth=0.1)
         self.txtpercentFormamide.configure(background="white")
         self.txtpercentFormamide.configure(disabledforeground="#a3a3a3")
@@ -755,6 +792,25 @@ class PLISH_Designer:
         self.Label7.configure(foreground="#000000")
         self.Label7.configure(text='''C. Initiator''')
         
+        self.Label26 = Label(self.top)
+        self.Label26.place(relx=0.06, rely=0.27, height=26, width=116)
+        self.Label26.configure(background="#d9d9d9")
+        self.Label26.configure(disabledforeground="#a3a3a3")
+        self.Label26.configure(foreground="#000000")
+        self.Label26.configure(text='''3. Probe Length:''')
+        
+        self.txtProbeLength = Entry(self.top)
+        self.txtProbeLength.place(relx=0.3, rely=0.27, height=24
+                , relwidth=0.1)
+        self.txtProbeLength.configure(background="white")
+        self.txtProbeLength.configure(disabledforeground="#a3a3a3")
+        self.txtProbeLength.configure(font="TkFixedFont")
+        self.txtProbeLength.configure(foreground="#000000")
+        self.txtProbeLength.configure(insertbackground="black")
+        self.txtProbeLength.configure(width=84)
+        
+        
+        
         self.combolistInitiators = ttk.Combobox(self.top)
         self.combolistInitiators.place(relx=0.25, rely=0.57, relheight=0.03, relwidth=0.15)
         self.combolistInitiators['values'] = plishcode_copy.initiator_label_list
@@ -769,7 +825,7 @@ class PLISH_Designer:
         self.txtMeltTemp_max.configure(width=84)
 
         self.btnSetDefaults = Button(self.top)
-        self.btnSetDefaults.place(relx=0.18, rely=0.1, height=33, width=92)
+        self.btnSetDefaults.place(relx=0.18, rely=0.07, height=33, width=92)
         self.btnSetDefaults.configure(activebackground="#d9d9d9")
         self.btnSetDefaults.configure(activeforeground="#000000")
         self.btnSetDefaults.configure(background="#d9d9d9")
