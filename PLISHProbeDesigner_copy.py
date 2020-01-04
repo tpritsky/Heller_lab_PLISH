@@ -94,8 +94,15 @@ def reinitialize_minGC_label(root, currentSequence, sequenceNumber, progressBar,
             
             #run filtering to remove overlapping probes
             
-            #Note: keys in valid_key_dictionary are sequence start indices and values are the number of alignments
+            #Note: keys in valid_key_dictionary are the mRNA alignment locations (where the probe would align
+            #to the mRNA sequence of the gene of interest) and values are the number of alignments
+            
+            #valid key dictionary contains all probes that passed filtering based %GC, Hairpin DG, and melting temp. 
+            #Extract all mRNA alignment locations for these probes into valid_key list
             plishcode_copy.valid_key_list = plishcode_copy.valid_key_dictionary.keys()
+            
+            #filter these valid probes for overlaps, to return a list of mRNA alignment indices corresponding
+            #to probes that don't have any overlaps and for which probe pairs are at least two base pairs apart. 
             non_overlapping_sequence_indices = plishcode_copy.filter_by_overlaps(plishcode_copy.valid_key_list) #stores valid, non-overlapping sequence indices
             print("Non overlapping Probes: " + str(non_overlapping_sequence_indices))
             
@@ -116,6 +123,7 @@ def reinitialize_minGC_label(root, currentSequence, sequenceNumber, progressBar,
                     sequence = plishcode_copy.two_alignment_full_binding_sequences[i]
                     two_alignment_dict.update({i:sequence})
             
+            #update dictionaries to contain pairs with key = mRNA alignment indice and value = sequence
             plishcode_copy.zero_alignment_full_binding_sequences = copy.deepcopy(zero_alignment_dict)
             plishcode_copy.one_alignment_full_binding_sequences = copy.deepcopy(one_alignment_dict)
             plishcode_copy.two_alignment_full_binding_sequences = copy.deepcopy(two_alignment_dict)
@@ -175,7 +183,7 @@ class PLISH_Designer:
     EThreshDefault = ".9"
     MaxEndAnnealDefault = "2"
     MinHairpinDGDefault = str(-0.49763270587821-0.978872719822112)  
-    FASTAPathDefault = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg_CLDN1_full_seq.txt"
+    FASTAPathDefault = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg_CXCL14_full_seq.txt"
     DBPathDefault = "/Users/tompritsky/Desktop/HellerLab/dataSets/Gallus_Gallus_Exons_and_UTR/-Gallus_Gallus_Exons_and_UTR"
     DesktopPathDefault = "/Users/tompritsky/Desktop"
     GeneValueDefault= "Otoferlin"

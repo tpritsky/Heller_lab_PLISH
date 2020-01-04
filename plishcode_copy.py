@@ -51,7 +51,7 @@ desktop_path = "/Users/tompritsky/Desktop"
 BLAST_xml_path = "/Users/tompritsky/Desktop/HellerLab/PLISH_SCRIPTS/blast_RUN.xml"
 
 #Path to FASTA file for mrna of gene of interest (please set)
-FASTA_file = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/IFI6__gg_coding_seq.txt"
+FASTA_file = "/Users/tompritsky/Desktop/HellerLab/dataSets/gene_seqs/gg_c14orf180_full_seq.txt"
 
 #Nucleotide database
 #nucleotideDatabase="/Users/tompritsky/Desktop/HellerLab/gallus_gallus.fasta"
@@ -841,7 +841,10 @@ def sortBLASTOutput(key, value, counter, record_ID):
         
         print alignment
     
-    #create tuple storing sequence [first element] and sequence number [second element]
+    #create tuple storing sequence [first element] and sequence number [second element]. The sequence number
+    #is just a number to determine the order in which probes are passed to the BLAST alignment function after
+    #the filtering step, and do not reflect the alignment location of the probe to the mRNA sequence of the gene 
+    #of interest. Rather, the mRNA alignment location is given by the 'key'. 
     value = [value, counter]
     
     '''store sequences with 0,1,2, and multiple alignment counts. Sequences are stored
@@ -894,7 +897,10 @@ def sortBLASTOutput(key, value, counter, record_ID):
     
 '''Write summary file: This file summarizes the PLISH alignments and returns a list
    of all plish probes with 0, 1 or 2 alignments. This summary file is stored
-   on the desktop, whose path is given by the global variable desktop_path, in the PLISH folder.'''
+   on the desktop, whose path is given by the global variable desktop_path, in the PLISH folder.
+   NEW: The file reports the sequence of each probe, the number of alignments, and the mRNA alignment
+   indice of each probe sequence. This mRNA alignment indice corresponds to the base pair indice from 
+   the 3' end of the mRNA of the gene of interest where the probe would align.'''
 def produceSummaryFile():
     
     #opens the summary file
@@ -979,7 +985,7 @@ def create_H_Probes():
             #get the start indices (from 3' end of mrna) of each h_probe binding region
             left_index = key
             '''EDIT'''
-            right_index = key + alignment_probe_length
+            right_index = key + alignment_probe_length + 2      #add two since there is a spacing of two base pairs between left and right probes of a pair
             
             #get the sequence number for the h_probe
             sequence_number = value[1]
